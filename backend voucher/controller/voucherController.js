@@ -18,7 +18,8 @@ exports.addVoucher = async (req, res) => {
     const ActivityLog = getModel(connection, "ActivityLog", activityLogSchema);
 
     const { date, transactions: rawTransactions, type, metadata } = req.body;
-    const created_by = req.user?.id;
+    // const created_by = req.user?.id;
+    const created_by = "6854f7e5b549c50f7e34ac75";
 
     const transactions = rawTransactions; // if transactions sent as JSON string
     // const files = req.files; // Multer .array('files') gives array of files

@@ -9,7 +9,7 @@ const activityLogSchema = new mongoose.Schema(
     },
     user_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "users", // or "User" if your user model is named that
+      ref: "user", 
       required: true,
     },
     entity_type: {

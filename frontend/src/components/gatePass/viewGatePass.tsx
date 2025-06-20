@@ -88,8 +88,8 @@ const ViewGatePass: React.FC = () => {
     console.log("Filtering from:", fromDate, "to:", toDate);
   };
 
-  const handleOpenDialog = (voucher: any) => {
-    setSelectedVoucher(voucher);
+  const handleOpenDialog = (voucher: any, igpId?: number) => {
+    setSelectedVoucher({ ...voucher, igpId });
     setOpenDialog(true);
   };
 
@@ -354,29 +354,36 @@ const ViewGatePass: React.FC = () => {
                         page * rowsPerPage,
                         page * rowsPerPage + rowsPerPage
                       )
-                      .map((row: any, index: number) => (
-                        <TableRow
-                          key={row.id || row._id}
-                          sx={{ "&:nth-of-type(odd)": { bgcolor: "#f5f5f5" } }}
-                        >
-                          <TableCell>{index + 1}</TableCell>
-                          <TableCell>{row.date}</TableCell>
-                          <TableCell>{row.party || row.partyName}</TableCell>
-                          <TableCell>{row.type || row.status}</TableCell>
-                          <TableCell>
-                            <Button
-                              variant="contained"
-                              color="success"
-                              size="small"
-                              startIcon={<VisibilityIcon />}
-                              sx={{ textTransform: "none" }}
-                              onClick={() => handleOpenDialog(row)}
-                            >
-                              View
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      .map((row: any, index: number) => {
+                        // Calculate the global index for IGP ID
+                        const globalIndex = page * rowsPerPage + index;
+                        const igpId = 1000 + globalIndex;
+                        return (
+                          <TableRow
+                            key={row.id || row._id}
+                            sx={{
+                              "&:nth-of-type(odd)": { bgcolor: "#f5f5f5" },
+                            }}
+                          >
+                            <TableCell>{igpId}</TableCell>
+                            <TableCell>{row.date}</TableCell>
+                            <TableCell>{row.party || row.partyName}</TableCell>
+                            <TableCell>{row.type || row.status}</TableCell>
+                            <TableCell>
+                              <Button
+                                variant="contained"
+                                color="success"
+                                size="small"
+                                startIcon={<VisibilityIcon />}
+                                sx={{ textTransform: "none" }}
+                                onClick={() => handleOpenDialog(row, igpId)}
+                              >
+                                View
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -525,7 +532,11 @@ const ViewGatePass: React.FC = () => {
                     letterSpacing: 1,
                   }}
                 >
-                  Gate Pass #{selectedVoucher.id || selectedVoucher._id}
+                  {`Gate Pass #IGP-${
+                    selectedVoucher && selectedVoucher.igpId !== undefined
+                      ? selectedVoucher.igpId
+                      : "-"
+                  }`}
                 </Box>
                 {/* Main Details */}
                 <Box
@@ -649,7 +660,9 @@ const ViewGatePass: React.FC = () => {
                 <Typography sx={{ fontWeight: 600, mb: 0.5 }}>
                   GP ID:{" "}
                   <span style={{ fontWeight: 400 }}>
-                    {selectedVoucher.id || selectedVoucher._id}
+                    {selectedVoucher && selectedVoucher.igpId !== undefined
+                      ? selectedVoucher.igpId
+                      : ""}
                   </span>
                 </Typography>
                 <Typography sx={{ fontWeight: 600, mb: 0.5 }}>

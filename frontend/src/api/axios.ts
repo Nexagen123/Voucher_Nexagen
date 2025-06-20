@@ -8,7 +8,7 @@ const axiosInstance = axios.create({
 });
 
 // function to register user
-export const addGatePass = async (gatepassData:any) => {
+export const addGatePass = async (gatepassData: any) => {
   try {
     const response = await axiosInstance.post("/gatepass", gatepassData);
     return response;
@@ -27,9 +27,9 @@ export const viewGatePass = async () => {
   }
 };
 
-export const createcategory = async (name:string) => {
+export const createcategory = async (name: string) => {
   try {
-    const response = await axiosInstance.post("/createcategory", {name});
+    const response = await axiosInstance.post("/createcategory", { name });
     return response;
   } catch (error) {
     console.error("Registration Error:", error);
@@ -49,22 +49,25 @@ export const showallcategory = async () => {
   }
 };
 
-export const createstock = async (stockData: any) => {
+// Update gate pass status or details
+export const updateGatePass = async (id: string, updateData: any) => {
   try {
-    const response = await axiosInstance.post("/createstock", stockData);
+    const response = await axiosInstance.put(`/gatepass/${id}`, updateData);
     return response;
   } catch (error) {
-    console.error("Stock Creation Error:", error);
+    console.error("Update GatePass Error:", error);
     throw error;
   }
 };
 
-export const showallstock = async () => {
+// Update gate pass status by ID
+export const updateGatePassStatus = async (id: string, status: string) => {
   try {
-    const response = await axiosInstance.get("/showallstock");
+    // Assuming PATCH /gatepass/:id with { status }
+    const response = await axiosInstance.patch(`/gatepass/${id}`, { status });
     return response;
   } catch (error) {
-    console.error("Stock Fetch Error:", error);
+    console.error("Update Status Error:", error);
     throw error;
   }
 };

@@ -32,7 +32,7 @@ import {
   NavigateNext as NavigateNextIcon,
   Edit as EditIcon,
 } from "@mui/icons-material";
-import { viewGatePass, updateGatePassStatus } from "../../api/axios";
+import { viewGatePass } from "../../api/axios";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
@@ -126,7 +126,7 @@ const ViewGatePass: React.FC = () => {
     // Update in backend
     try {
       const id = selectedVoucher.id || selectedVoucher._id;
-      await updateGatePassStatus(id, editData.status);
+     // await updateGatePassStatus(id, editData.status);
       // Update the selected voucher in the dialog
       setSelectedVoucher({
         ...selectedVoucher,
@@ -349,7 +349,7 @@ const ViewGatePass: React.FC = () => {
                         page * rowsPerPage,
                         page * rowsPerPage + rowsPerPage
                       )
-                      .map((row, index) => (
+                      .map((row: any, index: number) => (
                         <TableRow
                           key={row.id || row._id}
                           sx={{ "&:nth-of-type(odd)": { bgcolor: "#f5f5f5" } }}

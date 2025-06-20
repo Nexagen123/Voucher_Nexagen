@@ -30,11 +30,21 @@ html {
 html,
 body,
 #root {
-  margin: 0;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 0;
+  margin-bottom: 0;
   padding: 0;
-  width: 102%;
-  height: 100%;
-  display: block; /* Important to remove flex centering */
+  width: 100vw;
+  min-height: 100vh;
+  display: block;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+#root::-webkit-scrollbar {
+  display: none;
 }
 
 h1 {

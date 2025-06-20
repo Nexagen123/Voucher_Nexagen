@@ -35,6 +35,7 @@ import {
 import { viewGatePass } from "../../api/axios";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import logo from "../../assets/logo.png";
 
 interface GatePassVoucher {
   id: string;
@@ -126,7 +127,7 @@ const ViewGatePass: React.FC = () => {
     // Update in backend
     try {
       const id = selectedVoucher.id || selectedVoucher._id;
-     // await updateGatePassStatus(id, editData.status);
+      // await updateGatePassStatus(id, editData.status);
       // Update the selected voucher in the dialog
       setSelectedVoucher({
         ...selectedVoucher,
@@ -183,11 +184,24 @@ const ViewGatePass: React.FC = () => {
     }
   };
 
-  // Filtered data based on search query (by party name)
+  // Filtered data based on search query (by party name) and date range
   const filteredData = voucherData.filter((row: any) => {
     const party = (row.party || row.partyName || "").toLowerCase();
     const query = searchQuery.toLowerCase();
-    return party.includes(query);
+    const matchesParty = party.includes(query);
+    // Date filtering
+    const rowDate = row.date ? row.date.slice(0, 10) : "";
+    const from = fromDate ? fromDate.slice(0, 10) : "";
+    const to = toDate ? toDate.slice(0, 10) : "";
+    let matchesDate = true;
+    if (from && to) {
+      matchesDate = rowDate >= from && rowDate <= to;
+    } else if (from) {
+      matchesDate = rowDate >= from;
+    } else if (to) {
+      matchesDate = rowDate <= to;
+    }
+    return matchesParty && matchesDate;
   });
 
   return (
@@ -198,7 +212,7 @@ const ViewGatePass: React.FC = () => {
         padding: 0,
         marginLeft: "-18vw",
         marginRight: "0vw",
-        overflow: "hidden",
+        overflow: "auto", // Changed from 'hidden' to 'auto' to avoid unnecessary scrollbars
         backgroundColor: "#FFFFFF",
         display: "flex",
         flexDirection: "column",
@@ -207,7 +221,7 @@ const ViewGatePass: React.FC = () => {
       <Box
         sx={{
           flex: 1,
-          overflow: "auto",
+          overflow: "unset", // Changed from 'auto' to 'unset' to avoid nested scrollbars
           display: "flex",
           flexDirection: "column",
         }}
@@ -238,30 +252,21 @@ const ViewGatePass: React.FC = () => {
               <TextField
                 label="From Month"
                 type="date"
-                value={fromDate}
+                value={fromDate ? fromDate.slice(0, 10) : ""}
                 onChange={(e) => setFromDate(e.target.value)}
                 InputLabelProps={{ shrink: true }}
-                sx={{ width: 100 }}
+                sx={{ width: 200 }}
+                placeholder="yyyy-mm-dd"
               />
               <TextField
                 label="To Month"
                 type="date"
-                value={toDate}
+                value={toDate ? toDate.slice(0, 10) : ""}
                 onChange={(e) => setToDate(e.target.value)}
                 InputLabelProps={{ shrink: true }}
-                sx={{ width: 100 }}
+                sx={{ width: 200 }}
+                placeholder="yyyy-mm-dd"
               />
-              <Button
-                variant="contained"
-                onClick={handleSubmitFilter}
-                sx={{
-                  bgcolor: "#3da0bd",
-                  "&:hover": { bgcolor: "#053594" },
-                  height: "40px",
-                }}
-              >
-                Submit
-              </Button>
             </Box>
           </Paper>
 
@@ -322,7 +327,7 @@ const ViewGatePass: React.FC = () => {
               </Box>
 
               {/* Data Table */}
-              <TableContainer sx={{ flex: 1, maxHeight: "100%" }}>
+              <TableContainer sx={{ flex: 1, maxHeight: "none" }}>
                 <Table stickyHeader>
                   <TableHead>
                     <TableRow sx={{ bgcolor: "#3da0bd" }}>
@@ -395,7 +400,7 @@ const ViewGatePass: React.FC = () => {
       <Dialog
         open={openDialog}
         onClose={handleCloseDialog}
-        maxWidth="sm"
+        maxWidth="md" // Changed from 'sm' to 'md' for wider dialog
         fullWidth
       >
         <DialogTitle>Gate Pass Details</DialogTitle>
@@ -405,47 +410,187 @@ const ViewGatePass: React.FC = () => {
             ref={printRef}
             sx={{
               display: selectedVoucher && !editMode ? "block" : "none",
-              p: 2,
+              p: 3,
               background: "#fff",
               borderRadius: 2,
               mb: 2,
+              minWidth: 700, // Increased width for print area
+              maxWidth: 1300,
+              fontFamily: "Roboto, Arial",
+              color: "#222",
+              border: "1px solid #e0e0e0",
+              mx: "auto",
             }}
           >
             {selectedVoucher && !editMode && (
-              <Box sx={{ fontFamily: "Roboto, Arial", color: "#222" }}>
-                <Typography
-                  variant="h5"
-                  align="center"
-                  sx={{ fontWeight: 700, mb: 2, color: "#1976d2" }}
-                >
-                  Gate Pass
-                </Typography>
+              <>
+                {/* Header Row: Logo, Business Info, Print Date, Opening Balance */}
                 <Box
                   sx={{
                     display: "flex",
                     justifyContent: "space-between",
-                    mb: 1,
+                    alignItems: "flex-start",
+                    mb: 2,
                   }}
                 >
-                  <Typography>
-                    <b>GP ID:</b> {selectedVoucher.id || selectedVoucher._id}
-                  </Typography>
-                  <Typography>
-                    <b>Date:</b> {selectedVoucher.date}
-                  </Typography>
+                  {/* Logo and Info */}
+                  <Box
+                    sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}
+                  >
+                    <Box
+                      component="img"
+                      src={logo}
+                      alt="Nexagen Logo"
+                      sx={{
+                        width: 70,
+                        height: 70,
+                        objectFit: "contain",
+                        mr: 2,
+                      }}
+                    />
+                    <Box>
+                      <Typography
+                        variant="h6"
+                        sx={{ fontWeight: 700, letterSpacing: 1 }}
+                      >
+                        NEXAGEN
+                      </Typography>
+                      <Typography sx={{ fontSize: 14 }}>
+                        ALI MALL SUSAN ROAD
+                      </Typography>
+                      <Typography sx={{ fontSize: 14 }}>
+                        Phone: | Cell: | Email: test@mail.com
+                      </Typography>
+                      <Typography sx={{ fontSize: 14 }}>
+                        NTN#: 455184-8 | LIC#: 325
+                      </Typography>
+                    </Box>
+                  </Box>
+                  {/* Print Date and Balance */}
+                  <Box sx={{ minWidth: 180 }}>
+                    <Typography
+                      sx={{ textAlign: "right", fontSize: 13, mb: 1 }}
+                    >
+                      Print Date:{" "}
+                      {new Date().toLocaleDateString("en-GB", {
+                        weekday: "short",
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </Typography>
+                    <Box
+                      sx={{
+                        border: "1px solid #222",
+                        borderRadius: 1,
+                        overflow: "hidden",
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          bgcolor: "#f5f7fa",
+                          p: 1,
+                          textAlign: "center",
+                          fontWeight: 600,
+                          fontSize: 15,
+                          borderBottom: "1px solid #222",
+                        }}
+                      >
+                        Gate Pass Type
+                      </Box>
+                      <Box
+                        sx={{
+                          p: 1,
+                          textAlign: "center",
+                          fontWeight: 700,
+                          fontSize: 16,
+                        }}
+                      >
+                        {selectedVoucher.type || selectedVoucher.status}
+                      </Box>
+                    </Box>
+                  </Box>
                 </Box>
-                <Typography sx={{ mb: 1 }}>
-                  <b>Party Name:</b>{" "}
-                  {selectedVoucher.party || selectedVoucher.partyName}
-                </Typography>
-                <Typography sx={{ mb: 1 }}>
-                  <b>Status:</b>{" "}
-                  {selectedVoucher.type || selectedVoucher.status}
-                </Typography>
-                {/* Add more fields as needed */}
+                {/* Section Header */}
                 <Box
                   sx={{
-                    mt: 3,
+                    bgcolor: "#1976d2",
+                    color: "#fff",
+                    p: 1.2,
+                    borderRadius: 1,
+                    mb: 2,
+                    fontWeight: 700,
+                    fontSize: 18,
+                    textAlign: "center",
+                    letterSpacing: 1,
+                  }}
+                >
+                  Gate Pass #{selectedVoucher.id || selectedVoucher._id}
+                </Box>
+                {/* Main Details */}
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    mb: 2,
+                  }}
+                >
+                  <Box>
+                    <Typography sx={{ fontWeight: 500, mb: 0.5 }}>
+                      <b>Date:</b> {selectedVoucher.date}
+                    </Typography>
+                    <Typography sx={{ fontWeight: 500, mb: 0.5 }}>
+                      <b>Party Name:</b>{" "}
+                      {selectedVoucher.party || selectedVoucher.partyName}
+                    </Typography>
+                    <Typography sx={{ fontWeight: 500, mb: 0.5 }}>
+                      <b>Order No:</b> {selectedVoucher.orderNo || "-"}
+                    </Typography>
+                  </Box>
+                </Box>
+                {/* Product Table for Print */}
+                {Array.isArray(selectedVoucher.rows) &&
+                  selectedVoucher.rows.length > 0 && (
+                    <Box sx={{ mt: 2 }}>
+                      <Typography
+                        variant="subtitle1"
+                        sx={{ mb: 1, fontWeight: 600 }}
+                      >
+                        Products
+                      </Typography>
+                      <Table
+                        size="small"
+                        sx={{ maxWidth: 600, border: "1px solid #e0e0e0" }}
+                      >
+                        <TableHead>
+                          <TableRow sx={{ bgcolor: "#e3f2fd" }}>
+                            <TableCell sx={{ fontWeight: "bold" }}>
+                              Product Name
+                            </TableCell>
+                            <TableCell sx={{ fontWeight: "bold" }}>
+                              Quantity
+                            </TableCell>
+                            <TableCell sx={{ fontWeight: "bold" }}>
+                              Unit
+                            </TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {selectedVoucher.rows.map((row: any, idx: number) => (
+                            <TableRow key={row.id || idx}>
+                              <TableCell>{row.productName}</TableCell>
+                              <TableCell>{row.qty}</TableCell>
+                              <TableCell>{row.unit}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </Box>
+                  )}
+                {/* Signatures */}
+                <Box
+                  sx={{
+                    mt: 4,
                     display: "flex",
                     justifyContent: "space-between",
                   }}
@@ -467,31 +612,131 @@ const ViewGatePass: React.FC = () => {
                     />
                   </Box>
                 </Box>
-              </Box>
+              </>
             )}
           </Box>
           {/* Editable or view content (as before) */}
           {selectedVoucher && !editMode && (
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <Typography>
-                <b>GP ID:</b> {selectedVoucher.id || selectedVoucher._id}
-              </Typography>
-              <Typography>
-                <b>Date:</b> {selectedVoucher.date}
-              </Typography>
-              <Typography>
-                <b>Party Name:</b>{" "}
-                {selectedVoucher.party || selectedVoucher.partyName}
-              </Typography>
-              <Typography>
-                <b>Status:</b> {selectedVoucher.type || selectedVoucher.status}
-              </Typography>
-              <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
+            <Paper
+              elevation={4}
+              sx={{
+                p: 3,
+                borderRadius: 3,
+                minWidth: 700, // Increased width for view area
+                maxWidth: 1000,
+                mx: "auto",
+                boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
+              }}
+            >
+              {/* Header */}
+              <Box
+                sx={{
+                  bgcolor: "#1976d2",
+                  color: "#fff",
+                  p: 2,
+                  borderRadius: 2,
+                  mb: 2,
+                  textAlign: "center",
+                  fontWeight: 700,
+                  fontSize: 22,
+                  letterSpacing: 1,
+                }}
+              >
+                Gate Pass Details
+              </Box>
+              {/* Main Info */}
+              <Box sx={{ mb: 2 }}>
+                <Typography sx={{ fontWeight: 600, mb: 0.5 }}>
+                  GP ID:{" "}
+                  <span style={{ fontWeight: 400 }}>
+                    {selectedVoucher.id || selectedVoucher._id}
+                  </span>
+                </Typography>
+                <Typography sx={{ fontWeight: 600, mb: 0.5 }}>
+                  Date:{" "}
+                  <span style={{ fontWeight: 400 }}>
+                    {selectedVoucher.date}
+                  </span>
+                </Typography>
+                <Typography sx={{ fontWeight: 600, mb: 0.5 }}>
+                  Party Name:{" "}
+                  <span style={{ fontWeight: 400 }}>
+                    {selectedVoucher.party || selectedVoucher.partyName}
+                  </span>
+                </Typography>
+                <Typography sx={{ fontWeight: 600, mb: 0.5 }}>
+                  Status:{" "}
+                  <span style={{ fontWeight: 400 }}>
+                    {selectedVoucher.type || selectedVoucher.status}
+                  </span>
+                </Typography>
+                <Typography sx={{ fontWeight: 600, mb: 0.5 }}>
+                  Order No:{" "}
+                  <span style={{ fontWeight: 400 }}>
+                    {selectedVoucher.orderNo || "-"}
+                  </span>
+                </Typography>
+              </Box>
+              {/* Product Table */}
+              {Array.isArray(selectedVoucher.rows) &&
+                selectedVoucher.rows.length > 0 && (
+                  <Box sx={{ mt: 2 }}>
+                    <Typography
+                      variant="subtitle1"
+                      sx={{ mb: 1, fontWeight: 600, color: "#1976d2" }}
+                    >
+                      Products
+                    </Typography>
+                    <TableContainer
+                      component={Paper}
+                      sx={{
+                        borderRadius: 2,
+                        boxShadow: "none",
+                        border: "1px solid #e0e0e0",
+                      }}
+                    >
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow sx={{ bgcolor: "#e3f2fd" }}>
+                            <TableCell sx={{ fontWeight: "bold" }}>
+                              Product Name
+                            </TableCell>
+                            <TableCell sx={{ fontWeight: "bold" }}>
+                              Quantity
+                            </TableCell>
+                            <TableCell sx={{ fontWeight: "bold" }}>
+                              Unit
+                            </TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {selectedVoucher.rows.map((row: any, idx: number) => (
+                            <TableRow key={row.id || idx}>
+                              <TableCell>{row.productName}</TableCell>
+                              <TableCell>{row.qty}</TableCell>
+                              <TableCell>{row.unit}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </Box>
+                )}
+              {/* Action Buttons */}
+              <Box
+                sx={{
+                  display: "flex",
+                  gap: 2,
+                  mt: 3,
+                  justifyContent: "center",
+                }}
+              >
                 <Button
                   variant="contained"
                   color="primary"
                   startIcon={<EditIcon />}
                   onClick={handleEdit}
+                  sx={{ borderRadius: 2, minWidth: 100 }}
                 >
                   Edit
                 </Button>
@@ -500,11 +745,33 @@ const ViewGatePass: React.FC = () => {
                   color="secondary"
                   startIcon={<PrintIcon />}
                   onClick={handlePrint}
+                  sx={{ borderRadius: 2, minWidth: 100 }}
                 >
                   Print
                 </Button>
               </Box>
-            </Box>
+              {/* Signatures */}
+              <Box
+                sx={{ mt: 4, display: "flex", justifyContent: "space-between" }}
+              >
+                <Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Signature (Issuer)
+                  </Typography>
+                  <Box
+                    sx={{ borderBottom: "1px solid #888", width: 120, mt: 2 }}
+                  />
+                </Box>
+                <Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Signature (Receiver)
+                  </Typography>
+                  <Box
+                    sx={{ borderBottom: "1px solid #888", width: 120, mt: 2 }}
+                  />
+                </Box>
+              </Box>
+            </Paper>
           )}
           {selectedVoucher && editMode && (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -512,9 +779,11 @@ const ViewGatePass: React.FC = () => {
               <TextField
                 label="Date"
                 type="date"
-                value={editData.date || ""}
+                value={editData.date ? editData.date.slice(0, 10) : ""}
                 onChange={(e) => handleEditFieldChange("date", e.target.value)}
                 InputLabelProps={{ shrink: true }}
+                sx={{ width: 300 }}
+                placeholder="yyyy-mm-dd"
               />
               <TextField
                 label="Party Name"

@@ -74,6 +74,13 @@ const ViewGatePass: React.FC = () => {
     console.log("Filtering from:", fromDate, "to:", toDate);
   };
 
+  // Filtered data based on search query (by party name)
+  const filteredData = voucherData.filter((row: any) => {
+    const party = (row.party || row.partyName || "").toLowerCase();
+    const query = searchQuery.toLowerCase();
+    return party.includes(query);
+  });
+
   return (
     <Box
       sx={{
@@ -209,46 +216,48 @@ const ViewGatePass: React.FC = () => {
                 <Table stickyHeader>
                   <TableHead>
                     <TableRow sx={{ bgcolor: "#3da0bd" }}>
-                      <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                      <TableCell sx={{ color: "black", fontWeight: "bold" }}>
                         GP ID #
                       </TableCell>
-                      <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                      <TableCell sx={{ color: "black", fontWeight: "bold" }}>
                         Dated
                       </TableCell>
-                      <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                      <TableCell sx={{ color: "black", fontWeight: "bold" }}>
                         Party Name
                       </TableCell>
-                      <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                      <TableCell sx={{ color: "black", fontWeight: "bold" }}>
                         Status
                       </TableCell>
-                      <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                      <TableCell sx={{ color: "black", fontWeight: "bold" }}>
                         Action
                       </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {voucherData.map((row, index) => (
-                      <TableRow
-                        key={row.id}
-                        sx={{ "&:nth-of-type(odd)": { bgcolor: "#f5f5f5" } }}
-                      >
-                        <TableCell>{index + 1}</TableCell>
-                        <TableCell>{row.date}</TableCell>
-                        <TableCell>{row.party}</TableCell>
-                        <TableCell>{row.type}</TableCell>
-                        <TableCell>
-                          <Button
-                            variant="contained"
-                            color="success"
-                            size="small"
-                            startIcon={<VisibilityIcon />}
-                            sx={{ textTransform: "none" }}
-                          >
-                            View
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {filteredData
+                      .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                      .map((row, index) => (
+                        <TableRow
+                          key={row.id || row._id}
+                          sx={{ "&:nth-of-type(odd)": { bgcolor: "#f5f5f5" } }}
+                        >
+                          <TableCell>{index + 1}</TableCell>
+                          <TableCell>{row.date}</TableCell>
+                          <TableCell>{row.party || row.partyName}</TableCell>
+                          <TableCell>{row.type || row.status}</TableCell>
+                          <TableCell>
+                            <Button
+                              variant="contained"
+                              color="success"
+                              size="small"
+                              startIcon={<VisibilityIcon />}
+                              sx={{ textTransform: "none" }}
+                            >
+                              View
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -257,7 +266,7 @@ const ViewGatePass: React.FC = () => {
               <TablePagination
                 rowsPerPageOptions={[10, 25, 50, 100]}
                 component="div"
-                count={voucherData.length}
+                count={filteredData.length}
                 rowsPerPage={rowsPerPage}
                 page={page}
                 onPageChange={handleChangePage}

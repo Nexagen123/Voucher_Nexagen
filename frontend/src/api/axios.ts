@@ -41,10 +41,30 @@ export const showallcategory = async () => {
   try {
     const response = await axiosInstance.get("/showallcategory");
     console.log(response.data);
-    
+
     return response;
   } catch (error) {
     console.error("Registration Error:", error);
+    throw error;
+  }
+};
+
+export const createstock = async (stockData: any) => {
+  try {
+    const response = await axiosInstance.post("/createstock", stockData);
+    return response;
+  } catch (error) {
+    console.error("Stock Creation Error:", error);
+    throw error;
+  }
+};
+
+export const showallstock = async () => {
+  try {
+    const response = await axiosInstance.get("/showallstock");
+    return response;
+  } catch (error) {
+    console.error("Stock Fetch Error:", error);
     throw error;
   }
 };

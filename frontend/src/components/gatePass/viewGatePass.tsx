@@ -236,7 +236,7 @@ const ViewGatePass: React.FC = () => {
                   <TableBody>
                     {filteredData
                       .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                      .map((row, index) => (
+                      .map((row: any, index: number) => (
                         <TableRow
                           key={row.id || row._id}
                           sx={{ "&:nth-of-type(odd)": { bgcolor: "#f5f5f5" } }}

@@ -22,6 +22,7 @@ import {
   Snackbar,
 } from "@mui/material";
 import { Add as AddIcon, Delete as DeleteIcon } from "@mui/icons-material";
+import { createstock, showallcategory } from "../../api/axios";
 
 // Define interfaces for type safety
 interface StockItem {
@@ -38,8 +39,6 @@ interface StockItem {
 interface Category {
   _id: string;
   name: string;
-  description?: string;
-  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -55,37 +54,24 @@ const CreateStocks: React.FC = () => {
   const [snackbarMessage, setSnackbarMessage] = useState<string>('');
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'warning'>('success');
 
-  // API base URL
-  const API_BASE_URL = 'http://localhost:8000/api';
-
   // Fetch categories from backend
   const fetchCategories = async () => {
     try {
       setLoadingCategories(true);
-      console.log('Fetching categories from:', `${API_BASE_URL}/categories`);
+      console.log('Fetching categories...');
 
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/categories`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        }
-      });
-
-      console.log('Categories response status:', response.status);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const response = await showallcategory();
+      const data = response.data;
       console.log('Categories data:', data);
 
-      if (data.success) {
-        setCategories(data.data || []);
+      // The backend returns categories directly as an array
+      if (Array.isArray(data) && data.length > 0) {
+        setCategories(data);
+      } else if (data.success === false) {
+        showSnackbar('No categories found: ' + (data.message || 'Please add some categories first'), 'warning');
+        setCategories([]);
       } else {
-        showSnackbar('Failed to fetch categories: ' + (data.message || 'Unknown error'), 'error');
+        setCategories([]);
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -94,6 +80,7 @@ const CreateStocks: React.FC = () => {
       } else {
         showSnackbar('Error fetching categories', 'error');
       }
+      setCategories([]);
     } finally {
       setLoadingCategories(false);
     }
@@ -205,65 +192,68 @@ const CreateStocks: React.FC = () => {
 
     try {
       setSaving(true);
+      let successCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
 
-      const response = await fetch(`${API_BASE_URL}/inventory/bulk`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          // Add auth token if available
-          ...(localStorage.getItem('token') && {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          })
-        },
-        body: JSON.stringify({
-          items: stockItems.map(item => ({
+      // Create each stock item individually
+      for (const item of stockItems) {
+        try {
+          const stockData = {
             itemName: item.itemName.trim(),
             itemCode: item.itemCode.trim(),
-            qty: item.qty,
+            quantity: item.qty,
             category: item.category,
             unit: item.unit.trim(),
-            rate: item.rate
-          }))
-        })
-      });
+            rate: item.rate,
+            total: item.total
+          };
 
-      const data = await response.json();
+          const response = await createstock(stockData);
 
-      if (data.success) {
-        const { errors, summary } = data.data;
-
-        if (summary.successfullyCreated > 0) {
-          showSnackbar(
-            `Successfully created ${summary.successfullyCreated} out of ${summary.totalRequested} items!`,
-            'success'
-          );
+          if (response.data.success) {
+            successCount++;
+          } else {
+            errorCount++;
+            errors.push(`${item.itemName}: ${response.data.message || 'Unknown error'}`);
+          }
+        } catch (error) {
+          errorCount++;
+          console.error(`Error creating stock item ${item.itemName}:`, error);
+          errors.push(`${item.itemName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
+      }
 
-        if (errors.length > 0) {
-          console.warn('Some items failed to create:', errors);
-          showSnackbar(
-            `${errors.length} items failed to create. Check console for details.`,
-            'warning'
-          );
-        }
+      // Show results
+      if (successCount > 0) {
+        showSnackbar(
+          `Successfully created ${successCount} out of ${stockItems.length} items!`,
+          'success'
+        );
+      }
 
-        // Reset form only if at least some items were created successfully
-        if (summary.successfullyCreated > 0) {
-          setStockItems([
-            {
-              id: generateId(),
-              itemName: "",
-              itemCode: "",
-              qty: 0,
-              category: "",
-              unit: "",
-              rate: 0,
-              total: 0,
-            },
-          ]);
-        }
-      } else {
-        showSnackbar(data.message || 'Failed to create stock items', 'error');
+      if (errorCount > 0) {
+        console.warn('Some items failed to create:', errors);
+        showSnackbar(
+          `${errorCount} items failed to create. Check console for details.`,
+          'warning'
+        );
+      }
+
+      // Reset form only if at least some items were created successfully
+      if (successCount > 0) {
+        setStockItems([
+          {
+            id: generateId(),
+            itemName: "",
+            itemCode: "",
+            qty: 0,
+            category: "",
+            unit: "",
+            rate: 0,
+            total: 0,
+          },
+        ]);
       }
     } catch (error) {
       console.error('Error creating stock items:', error);

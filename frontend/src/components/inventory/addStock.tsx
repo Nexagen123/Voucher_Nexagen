@@ -56,7 +56,7 @@ const CreateStocks: React.FC = () => {
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'warning'>('success');
 
   // API base URL
-  const API_BASE_URL = 'http://localhost:5000/api';
+  const API_BASE_URL = 'http://localhost:8000/api';
 
   // Fetch categories from backend
   const fetchCategories = async () => {

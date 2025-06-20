@@ -72,7 +72,7 @@ const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
       
       // Call API to void the voucher
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/vouchers/${voucher.id || voucher._id}`, {
+      const response = await fetch(`http://localhost:8000/api/vouchers/${voucher.id || voucher._id}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',

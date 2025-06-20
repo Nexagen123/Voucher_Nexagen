@@ -89,7 +89,7 @@ const ViewPurchaseVoucher: React.FC = () => {
       setError('');
 
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/vouchers/purchase', {
+      const response = await fetch('http://localhost:8000/api/vouchers/purchase', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

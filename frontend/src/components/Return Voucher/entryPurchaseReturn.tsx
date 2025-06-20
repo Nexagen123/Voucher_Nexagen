@@ -93,7 +93,7 @@ const EntryPurchaseReturn: React.FC = () => {
       console.log('Purchase Return to submit:', voucher);
 
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/purchase-returns', {
+      const response = await fetch('http://localhost:8000/api/purchase-returns', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

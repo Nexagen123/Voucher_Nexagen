@@ -67,7 +67,7 @@ const ViewSalesReturn: React.FC = () => {
         setLoading(false);
         return;
       }m 
-      const response = await fetch(`http://localhost:5000/api/sales-returns?page=${currentPage}&limit=${entriesPerPage}`, {
+      const response = await fetch(`http://localhost:8000/api/sales-returns?page=${currentPage}&limit=${entriesPerPage}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,

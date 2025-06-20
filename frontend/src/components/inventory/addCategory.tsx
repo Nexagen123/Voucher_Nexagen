@@ -42,9 +42,10 @@ console.log(categories);
       setFetchingCategories(true);
       const response = await showallcategory();
       const data = await response.data;
+      console.log(data,"6766");
 
+      setCategories(data || []);
       if (data.success) {
-        setCategories(data.data || []);
 
       } else {
         setSnackbarMessage('Failed to fetch categories: ' + (data.message || 'Unknown error'));
@@ -78,7 +79,7 @@ console.log(categories);
 
     // Check if category already exists locally
     const existingCategory = categories.find(
-      cat => cat.name.toLowerCase() === categoryName.toLowerCase()
+      cat => cat?.name.toLowerCase() === categoryName.toLowerCase()
     );
 
     if (existingCategory) {

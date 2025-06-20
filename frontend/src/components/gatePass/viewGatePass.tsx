@@ -49,6 +49,7 @@ const ViewGatePass: React.FC = () => {
   // Sample data
   const [voucherData,setVoucherData] = useState<any>([
   ]);
+console.log(voucherData);
 
   const fetchGatePass=async()=>{
     const response=await viewGatePass();
@@ -174,7 +175,7 @@ const ViewGatePass: React.FC = () => {
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Dated</TableCell>
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Party Name</TableCell>
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Status</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Added By</TableCell>
+                      {/* <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Added By</TableCell> */}
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Action</TableCell>
                     </TableRow>
                   </TableHead>
@@ -184,11 +185,11 @@ const ViewGatePass: React.FC = () => {
                         key={row.id}
                         sx={{ '&:nth-of-type(odd)': { bgcolor: '#f5f5f5' } }}
                       >
-                        <TableCell>{row.id}</TableCell>
+                        <TableCell>{index+1}</TableCell>
                         <TableCell>{row.date}</TableCell>
-                        <TableCell>{row.partyName}</TableCell>
-                        <TableCell>{row.status}</TableCell>
-                        <TableCell>{row.addedBy}</TableCell>
+                        <TableCell>{row.party}</TableCell>
+                        <TableCell>{row.type}</TableCell>
+                        {/* <TableCell>{row.addedBy}</TableCell> */}
                         <TableCell>
                           <IconButton color="primary" title="View">
                             <VisibilityIcon />

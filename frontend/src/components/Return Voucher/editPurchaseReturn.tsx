@@ -90,7 +90,7 @@ const EditPurchaseReturn: React.FC<EditPurchaseReturnProps> = ({
 
       // Call API to update the return
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/purchase-returns/${returnItem.id || returnItem._id}`, {
+      const response = await fetch(`http://localhost:8000/api/purchase-returns/${returnItem.id || returnItem._id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

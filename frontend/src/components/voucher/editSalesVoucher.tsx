@@ -234,7 +234,7 @@ const EditSalesVoucher: React.FC<EditSalesVoucherProps> = ({
       // Use the MongoDB _id for the API call, or fallback to voucher.id
       const voucherId = voucher._id || voucher.id;
 
-      const response = await fetch(`http://localhost:5000/api/vouchers/${voucherId}`, {
+      const response = await fetch(`http://localhost:8000/api/vouchers/${voucherId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

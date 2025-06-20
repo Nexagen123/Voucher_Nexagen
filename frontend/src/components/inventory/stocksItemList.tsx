@@ -138,7 +138,7 @@ const StocksItemList: React.FC<StockItemListProps> = ({
   ];
 
   // API base URL
-  const API_BASE_URL = 'http://localhost:5000/api';
+  const API_BASE_URL = 'http://localhost:8000/api';
 
   // Fetch stock items from backend with improved error handling
   const fetchStockItems = useCallback(async () => {

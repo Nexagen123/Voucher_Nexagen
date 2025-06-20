@@ -85,7 +85,7 @@ const PurchaseReturnList: React.FC<PurchaseReturnListProps> = ({
       setApiError(null);
 
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/purchase-returns?page=1&limit=100`, {
+      const response = await fetch(`http://localhost:8000/api/purchase-returns?page=1&limit=100`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -199,7 +199,7 @@ const PurchaseReturnList: React.FC<PurchaseReturnListProps> = ({
     // Handle API delete
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/purchase-returns/${id}`, {
+      const response = await fetch(`http://localhost:8000/api/purchase-returns/${id}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',

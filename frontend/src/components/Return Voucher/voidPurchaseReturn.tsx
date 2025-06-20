@@ -72,7 +72,7 @@ const VoidPurchaseReturn: React.FC<VoidPurchaseReturnProps> = ({
       
       // Get all purchase returns and filter for voided ones
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/purchase-returns', {
+      const response = await fetch('http://localhost:8000/api/purchase-returns', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

@@ -86,7 +86,7 @@ const ViewSalesVoucher: React.FC = () => {
       setError('');
 
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/vouchers/sales?page=${currentPage}&limit=${entriesPerPage}`, {
+      const response = await fetch(`http://localhost:8000/api/vouchers/sales?page=${currentPage}&limit=${entriesPerPage}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -71,7 +71,7 @@ const SalesReturnDetail: React.FC<SalesReturnDetailProps> = ({
       
       // Call API to void the return
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/sales-returns/${returnItem.id || returnItem._id}`, {
+      const response = await fetch(`http://localhost:8000/api/sales-returns/${returnItem.id || returnItem._id}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',

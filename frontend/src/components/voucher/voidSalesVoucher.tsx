@@ -72,7 +72,7 @@ const VoidSalesVoucher: React.FC<VoidSalesVoucherProps> = ({
       console.log('Fetching voided sales vouchers...');
 
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/vouchers/sales', {
+      const response = await fetch('http://localhost:8000/api/vouchers/sales', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

@@ -18,11 +18,13 @@ import {
   FormControl,
   FormLabel,
   InputAdornment,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import { Add as AddIcon, Delete as DeleteIcon } from "@mui/icons-material";
 import { addGatePass } from "../../api/axios";
 
-
+// const addedBy =ID ||"user id to be added "
 const PRIMARY_COLOR = "#3da0bd";
 
 interface ProductRow {
@@ -32,6 +34,8 @@ interface ProductRow {
   qty: number | "";
   unit: string;
 }
+
+
 
 const units = ["Pieces", "Kg", "Liters", "Meters", "Boxes"];
 
@@ -43,6 +47,9 @@ const AddGatePass: React.FC = () => {
   const [rows, setRows] = useState<ProductRow[]>([
     { id: Date.now().toString(), productName: "", detail: "", qty: "", unit: "" },
   ]);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">("success");
 
   const handleRowChange = (id: string, field: keyof ProductRow, value: any) => {
     setRows((prev) =>
@@ -63,14 +70,22 @@ const AddGatePass: React.FC = () => {
     setRows((prev) => prev.length > 1 ? prev.filter((row) => row.id !== id) : prev);
   };
 
-  const handleSave = async() => {
-    console.log({ date, party, orderNo, type, rows });
-    const gatepassData = { date, party, orderNo, type, rows };
-    const response=await addGatePass(gatepassData);
-    console.log(response);
-    
-    // Implement save logic here
-    // Example: console.log({ date, party, orderNo, type, rows });
+  const handleSave = async () => {
+    try {
+      const gatepassData = { date, party, orderNo, type, rows };
+      const response = await addGatePass(gatepassData);
+      setSnackbarMessage("Saved successfully!");
+      setSnackbarSeverity("success");
+      setSnackbarOpen(true);
+    } catch (error) {
+      setSnackbarMessage("Error saving");
+      setSnackbarSeverity("error");
+      setSnackbarOpen(true);
+    }
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbarOpen(false);
   };
 
   return (
@@ -406,6 +421,21 @@ const AddGatePass: React.FC = () => {
           </Box>
         </Paper>
       </Box>
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={snackbarSeverity}
+          sx={{ width: '100%' }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

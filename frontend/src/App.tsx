@@ -22,7 +22,7 @@ import VoidPurchaseVoucher from "./components/voucher/voidPurchaseVoucher";
 import VoidSalesVoucher from "./components/voucher/voidSalesVoucher";
 import VoidSalesReturn from "./components/Return Voucher/voidSalesReturn";
 import VoidPurchaseReturn from "./components/Return Voucher/voidPurchaseReturn";
-import Login from "./components/auth/Login";
+// import Login from "./components/auth/Login";
 import AddGatePass from "./components/gatePass/addGatePass";
 import ViewGatePass from "./components/gatePass/viewGatePass";
 import "./App.css";
@@ -66,7 +66,7 @@ function App() {
 
     console.log('🔍 Verifying token with backend...');
     // Verify token with backend
-    fetch("http://localhost:5000/api/users/me", {
+    fetch("http://localhost:8000/api/users/me", {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => {

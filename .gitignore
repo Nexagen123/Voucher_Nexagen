@@ -1,0 +1,49 @@
+# Node
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Logs
+logs/
+*.log
+
+# dotenv environment variables
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build output
+dist/
+build/
+
+# Vite
+.mui-react-ts/dist/
+.mui-react-ts/build/
+
+# Misc
+*.local
+coverage/
+
+# VSCode
+.vscode/
+
+# Uploads
+backend/uploads/
+
+# Ignore database dumps
+*.sql
+*.sqlite
+*.sqlite3
+*.db
+
+# Ignore test coverage
+coverage/
+
+# Ignore IDE files
+.idea/
+*.sublime-workspace
+*.sublime-project

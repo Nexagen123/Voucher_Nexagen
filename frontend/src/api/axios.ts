@@ -142,3 +142,14 @@ export const getVoucherById = async (id: string, params?: { entries?: boolean; [
   }
 };
 
+// Account API functions
+export const getAllAccounts = async () => {
+  try {
+    const response = await axiosInstance.get("/showallaccount");
+    return response;
+  } catch (error) {
+    console.error("Account Fetch Error:", error);
+    throw error;
+  }
+};
+

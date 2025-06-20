@@ -16,8 +16,19 @@ exports.addSalesVoucher = async (req, res) => {
     const Entries = getModel(connection, "Entries", entriesSchema);
     const ActivityLog = getModel(connection, "ActivityLog", activityLogSchema);
 
+    // Register Account model for validation
+    let Account;
+    try {
+      Account = connection.model("Account");
+    } catch (error) {
+      const AccountModel = require("../models/account");
+      const accountSchema = AccountModel.schema;
+      Account = connection.model("Account", accountSchema);
+    }
+
     const { date, party, carton, closing_balance, items, type, metadata } = req.body;
     const created_by = "6854f7e5b549c50f7e34ac75"; // Replace with `req.user?.id` in production
+
     console.log("Creating Sales Voucher:", {
       date,
       party,
@@ -27,6 +38,21 @@ exports.addSalesVoucher = async (req, res) => {
       type,
       metadata,
     });
+
+    // Validate required fields
+    if (!date || !party || !items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        message: "Missing required fields: date, party, and items are required"
+      });
+    }
+
+    // Validate party exists
+    const partyExists = await Account.findById(party);
+    if (!partyExists) {
+      return res.status(400).json({
+        message: "Invalid party ID: Party not found"
+      });
+    }
     // Get voucher number
     let nextVoucherNumber = 1;
     const latest = await SalesVoucher.find({ type }).sort({ created_at: -1 }).limit(1);

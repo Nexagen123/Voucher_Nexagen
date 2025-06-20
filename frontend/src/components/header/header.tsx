@@ -141,7 +141,6 @@ const Header: React.FC<HeaderProps> = ({ onNavigate }) => {
   const inventoryItems = [
     { id: 'add-category', label: 'Add Category' },
     { id: 'add-stock', label: 'Add Stock' },
-    { id: 'stock-list', label: 'Stock List' },
     { id: 'stock-summary', label: 'Stock Summary' },
     { id: 'nil-stocks', label: 'Nil Stocks' },
   ];

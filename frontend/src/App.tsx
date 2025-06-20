@@ -6,7 +6,6 @@ import Header from "./components/header/header";
 import Layout from "./components/layout/Layout";
 import AddCategory from "./components/inventory/addCategory";
 import CreateStocks from "./components/inventory/addStock";
-import StocksItemList from "./components/inventory/stocksItemList";
 import StockSummary from "./components/inventory/stockSummary";
 import NilStocks from "./components/inventory/nilStocks";
 import PurchaseVoucher from "./components/voucher/purchaseVoucher";
@@ -112,8 +111,6 @@ function App() {
         );
       case "add-stock":
         return <CreateStocks />;
-      case "stock-list":
-        return <StocksItemList />;
       case "stock-summary":
         return <StockSummary />;
       case "nil-stocks":

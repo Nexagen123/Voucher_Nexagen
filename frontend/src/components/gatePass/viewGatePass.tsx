@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   Box,
   Paper,
@@ -20,44 +20,40 @@ import {
   Breadcrumbs,
   Link,
   TablePagination,
-} from '@mui/material';
+} from "@mui/material";
 import {
   Visibility as VisibilityIcon,
   Print as PrintIcon,
   Search as SearchIcon,
   NavigateNext as NavigateNextIcon,
-} from '@mui/icons-material';
-import { viewGatePass } from '../../api/axios';
+} from "@mui/icons-material";
+import { viewGatePass } from "../../api/axios";
 
 interface GatePassVoucher {
   id: string;
   date: string;
   partyName: string;
-  status: 'Gate-In' | 'Gate-Out';
+  status: "Gate-In" | "Gate-Out";
   addedBy: string;
 }
 
 const ViewGatePass: React.FC = () => {
-  // State management
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [entriesPerPage, setEntriesPerPage] = useState(50);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(50);
+  const [voucherData, setVoucherData] = useState<any>([]);
 
-  // Sample data
-  const [voucherData,setVoucherData] = useState<any>([
-  ]);
-console.log(voucherData);
-
-  const fetchGatePass=async()=>{
-    const response=await viewGatePass();
+  const fetchGatePass = async () => {
+    const response = await viewGatePass();
     setVoucherData(response.data);
-  }
-  useEffect(()=>{
+  };
+
+  useEffect(() => {
     fetchGatePass();
-  },[]);
+  }, []);
 
   const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(event.target.value);
@@ -67,49 +63,69 @@ console.log(voucherData);
     setPage(newPage);
   };
 
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChangeRowsPerPage = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
 
   const handleSubmitFilter = () => {
-    // Implement date filter logic here
-    console.log('Filtering from:', fromDate, 'to:', toDate);
+    console.log("Filtering from:", fromDate, "to:", toDate);
   };
 
   return (
-    <Box sx={{
-      width: '100%',
-      padding: { xs: 2, md: 4 },
-      backgroundColor: '#FFFFFF'
-    }}>
-      <Box sx={{ maxWidth: '100%' }}>
-        <Paper elevation={3} sx={{
-          p: { xs: 2, md: 3 },
-          borderRadius: { xs: 1, md: 2 },
-          width: '100%'
-        }}>
+    <Box
+      sx={{
+        width: "97vw",
+        height: "100vh",
+        padding: 0,
+        marginLeft: "-18vw",
+        marginRight: "0vw",
+        overflow: "hidden",
+        backgroundColor: "#FFFFFF",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <Box
+        sx={{
+          flex: 1,
+          overflow: "auto",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <Paper
+          elevation={3}
+          sx={{
+            flex: 1,
+            borderRadius: 0,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
           {/* Breadcrumb Navigation */}
-          <Breadcrumbs 
-            separator={<NavigateNextIcon fontSize="small" />} 
-            sx={{ mb: 3 }}
+          <Breadcrumbs
+            separator={<NavigateNextIcon fontSize="small" />}
+            sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}
           >
-            <Link color="inherit" href="/" sx={{ textDecoration: 'none' }}>
+            <Link color="inherit" href="/" sx={{ textDecoration: "none" }}>
               Home
             </Link>
             <Typography color="text.primary">All Gate Pass Vouchers</Typography>
           </Breadcrumbs>
 
           {/* Filter Section */}
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-end' }}>
+          <Paper sx={{ mx: 2, mt: 2, p: 2 }}>
+            <Box sx={{ display: "flex", gap: 2, alignItems: "flex-end" }}>
               <TextField
                 label="From Month"
                 type="date"
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
                 InputLabelProps={{ shrink: true }}
-                sx={{ width: 200 }}
+                sx={{ width: 100 }}
               />
               <TextField
                 label="To Month"
@@ -117,15 +133,15 @@ console.log(voucherData);
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}
                 InputLabelProps={{ shrink: true }}
-                sx={{ width: 200 }}
+                sx={{ width: 100 }}
               />
               <Button
                 variant="contained"
                 onClick={handleSubmitFilter}
                 sx={{
-                  bgcolor: '#3da0bd',
-                  '&:hover': { bgcolor: '#053594' },
-                  height: '40px'
+                  bgcolor: "#3da0bd",
+                  "&:hover": { bgcolor: "#053594" },
+                  height: "40px",
                 }}
               >
                 Submit
@@ -134,11 +150,33 @@ console.log(voucherData);
           </Paper>
 
           {/* Main Content */}
-          <Paper sx={{ width: '100%', mb: 2 }}>
-            <Box sx={{ p: 3 }}>
+          <Paper
+            sx={{
+              m: 2,
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            <Box
+              sx={{
+                p: 2,
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
               {/* Table Controls */}
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                <FormControl sx={{ minWidth: 120 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  mb: 2,
+                  flexWrap: "wrap",
+                  gap: 2,
+                }}
+              >
+                <FormControl sx={{ minWidth: 100 }}>
                   <InputLabel>Show Entries</InputLabel>
                   <Select
                     value={entriesPerPage}
@@ -162,41 +200,52 @@ console.log(voucherData);
                       </InputAdornment>
                     ),
                   }}
-                  sx={{ width: 250 }}
+                  sx={{ width: 200 }}
                 />
               </Box>
 
               {/* Data Table */}
-              <TableContainer>
-                <Table>
+              <TableContainer sx={{ flex: 1, maxHeight: "100%" }}>
+                <Table stickyHeader>
                   <TableHead>
-                    <TableRow sx={{ bgcolor: '#3da0bd' }}>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>GP ID #</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Dated</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Party Name</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Status</TableCell>
-                      {/* <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Added By</TableCell> */}
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Action</TableCell>
+                    <TableRow sx={{ bgcolor: "#3da0bd" }}>
+                      <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                        GP ID #
+                      </TableCell>
+                      <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                        Dated
+                      </TableCell>
+                      <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                        Party Name
+                      </TableCell>
+                      <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                        Status
+                      </TableCell>
+                      <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                        Action
+                      </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {voucherData.map((row, index) => (
                       <TableRow
                         key={row.id}
-                        sx={{ '&:nth-of-type(odd)': { bgcolor: '#f5f5f5' } }}
+                        sx={{ "&:nth-of-type(odd)": { bgcolor: "#f5f5f5" } }}
                       >
-                        <TableCell>{index+1}</TableCell>
+                        <TableCell>{index + 1}</TableCell>
                         <TableCell>{row.date}</TableCell>
                         <TableCell>{row.party}</TableCell>
                         <TableCell>{row.type}</TableCell>
-                        {/* <TableCell>{row.addedBy}</TableCell> */}
                         <TableCell>
-                          <IconButton color="primary" title="View">
-                            <VisibilityIcon />
-                          </IconButton>
-                          <IconButton color="primary" title="Print">
-                            <PrintIcon />
-                          </IconButton>
+                          <Button
+                            variant="contained"
+                            color="success"
+                            size="small"
+                            startIcon={<VisibilityIcon />}
+                            sx={{ textTransform: "none" }}
+                          >
+                            View
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}

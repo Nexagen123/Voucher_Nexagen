@@ -211,7 +211,7 @@ const ViewGatePass: React.FC = () => {
         padding: 0,
         marginLeft: "-18vw",
         marginRight: "0vw",
-        overflow: "hidden",
+        overflow: "auto", // Changed from 'hidden' to 'auto' to avoid unnecessary scrollbars
         backgroundColor: "#FFFFFF",
         display: "flex",
         flexDirection: "column",
@@ -220,7 +220,7 @@ const ViewGatePass: React.FC = () => {
       <Box
         sx={{
           flex: 1,
-          overflow: "auto",
+          overflow: "unset", // Changed from 'auto' to 'unset' to avoid nested scrollbars
           display: "flex",
           flexDirection: "column",
         }}
@@ -326,7 +326,7 @@ const ViewGatePass: React.FC = () => {
               </Box>
 
               {/* Data Table */}
-              <TableContainer sx={{ flex: 1, maxHeight: "100%" }}>
+              <TableContainer sx={{ flex: 1, maxHeight: "none" }}>
                 <Table stickyHeader>
                   <TableHead>
                     <TableRow sx={{ bgcolor: "#3da0bd" }}>

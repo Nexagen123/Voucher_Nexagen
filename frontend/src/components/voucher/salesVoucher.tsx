@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Paper,
@@ -16,6 +16,7 @@ import {
   Autocomplete,
 } from "@mui/material";
 import { Add as AddIcon, Delete as DeleteIcon } from "@mui/icons-material";
+import { getAllAccounts } from "../../api/axios";
 
 // Define interfaces for type safety
 interface SalesItem {
@@ -35,19 +36,15 @@ interface SalesItem {
 }
 
 interface Party {
-  id: string;
+  _id: string;
   name: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 const SalesVoucher: React.FC = () => {
-  // Sample data for parties
-  const [parties] = useState<Party[]>([
-    { id: "1", name: "ABC Retail Store" },
-    { id: "2", name: "XYZ Wholesale Co." },
-    { id: "3", name: "Global Distributors" },
-    { id: "4", name: "Premium Sales Ltd." },
-    { id: "5", name: "Local Market Co." },
-  ]);
+  // State for parties (accounts)
+  const [parties, setParties] = useState<Party[]>([]);
 
   // Sample categories
   const [categories] = useState<string[]>([
@@ -72,9 +69,30 @@ const SalesVoucher: React.FC = () => {
     return `${day}/${month}/${year}`;
   };
 
-  const [selectedParty, setSelectedParty] = useState("");
+  const [selectedParty, setSelectedParty] = useState<Party | null>(null);
   const [carton, setCarton] = useState("");
   const [closingBalance, setClosingBalance] = useState("");
+
+  // Fetch parties on component mount
+  useEffect(() => {
+    const fetchParties = async () => {
+      try {
+        console.log("Fetching accounts...");
+        const response = await getAllAccounts();
+        console.log("Accounts response:", response.data);
+        setParties(response.data || []);
+      } catch (error) {
+        console.error("Error fetching accounts:", error);
+        // Add some sample data for testing if API fails
+        setParties([
+          { _id: "sample1", name: "Sample Party 1" },
+          { _id: "sample2", name: "Sample Party 2" },
+        ]);
+      }
+    };
+
+    fetchParties();
+  }, []);
 
   // State for sales items
   const [salesItems, setSalesItems] = useState<SalesItem[]>([
@@ -194,7 +212,7 @@ const SalesVoucher: React.FC = () => {
     // Validate that all required fields are filled
     const isValid =
       voucherDate.trim() !== "" &&
-      selectedParty !== "" &&
+      selectedParty !== null &&
       salesItems.every(
         (item) =>
           item.item.trim() !== "" &&
@@ -209,28 +227,43 @@ const SalesVoucher: React.FC = () => {
     }
 
     try {
-      // Prepare data for backend API
+      // Prepare data for backend API to match the expected schema
       const voucherData = {
-        date: formatDateToDisplay(voucherDate), // Convert to dd/mm/yyyy for display/storage
-        party: selectedParty,
+        date: voucherDate, // Send as ISO date string
+        type: "Sales",
+        party: selectedParty?._id, // Send the party ID
+        carton: Number(carton) || 0,
+        closing_balance: Number(closingBalance) || 0,
         items: salesItems.map((item) => ({
-          itemName: item.item,
-          quantity: item.dzn + item.pcs, // Combine dzn and pcs as total quantity
+          item: item.item,
+          dzn: item.dzn,
+          pcs: item.pcs,
           rate: item.rate,
           category: item.category,
           detail: item.detail,
           disc: item.disc,
-          exDisc: item.exDisc,
+          disc_percent: item.discPercent,
+          ex_disc_percent: item.exDisc,
           total: item.total,
+          debit: item.debit,
+          credit: item.credit,
+          metadata: {
+            itemName: item.item,
+            quantity: item.dzn + item.pcs,
+          }
         })),
+        metadata: {
+          totalAmount: salesItems.reduce((sum, item) => sum + item.total, 0),
+          itemsCount: salesItems.length,
+        }
       };
 
-      const token = localStorage.getItem("token");
-      const response = await fetch("http://localhost:8000/api/vouchers/sales", {
+      const dbprefix = localStorage.getItem("dbprefix") || "fast";
+      const response = await fetch("http://localhost:8000/sales-vouchers/addSalesVoucher", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
+          "dbprefix": dbprefix,
         },
         body: JSON.stringify(voucherData),
       });
@@ -242,9 +275,9 @@ const SalesVoucher: React.FC = () => {
       const result = await response.json();
       console.log("Sales voucher saved:", result);
 
-      if (result.success) {
+      if (result.message && result.voucher) {
         alert(
-          `Sales voucher saved successfully! Voucher ID: ${result.data.id}`
+          `Sales voucher saved successfully! Voucher ID: ${result.voucher.voucher_id}`
         );
       } else {
         throw new Error(result.message || "Failed to save voucher");
@@ -252,7 +285,7 @@ const SalesVoucher: React.FC = () => {
 
       // Reset form
       setVoucherDate("");
-      setSelectedParty("");
+      setSelectedParty(null);
       setCarton("");
       setClosingBalance("");
       setSalesItems([
@@ -375,21 +408,11 @@ const SalesVoucher: React.FC = () => {
                 <Autocomplete
                   size="small"
                   options={parties}
-                  getOptionLabel={(option) =>
-                    typeof option === "string" ? option : option.name
-                  }
-                  value={
-                    parties.find((party) => party.name === selectedParty) ||
-                    null
-                  }
+                  getOptionLabel={(option) => option.name}
+                  value={selectedParty}
                   onChange={(_, newValue) => {
-                    if (newValue && typeof newValue !== "string") {
-                      setSelectedParty(newValue.name);
-                    } else {
-                      setSelectedParty("");
-                    }
+                    setSelectedParty(newValue);
                   }}
-                  // Remove inputValue and onInputChange to disable free typing
                   freeSolo={false}
                   renderInput={(params) => (
                     <TextField
@@ -803,7 +826,9 @@ const SalesVoucher: React.FC = () => {
                     <TableCell sx={{ fontWeight: "bold", minWidth: 100, p: 2 }}>
                       Credit
                     </TableCell>
-                    {/* Removed ACTIONS column */}
+                    <TableCell sx={{ fontWeight: "bold", minWidth: 120, p: 2 }}>
+                      Actions
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -1068,7 +1093,29 @@ const SalesVoucher: React.FC = () => {
                           variant="outlined"
                         />
                       </TableCell>
-                      {/* Removed ACTIONS cell */}
+                      <TableCell sx={{ p: 2 }}>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          startIcon={<DeleteIcon />}
+                          onClick={() => deleteRow(item.id)}
+                          disabled={salesItems.length <= 1}
+                          sx={{
+                            borderColor: '#f44336',
+                            color: '#f44336',
+                            '&:hover': {
+                              borderColor: '#d32f2f',
+                              backgroundColor: '#ffebee'
+                            },
+                            '&:disabled': {
+                              borderColor: '#cccccc',
+                              color: '#cccccc'
+                            }
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

@@ -126,7 +126,7 @@ const ViewGatePass: React.FC = () => {
     // Update in backend
     try {
       const id = selectedVoucher.id || selectedVoucher._id;
-     // await updateGatePassStatus(id, editData.status);
+      // await updateGatePassStatus(id, editData.status);
       // Update the selected voucher in the dialog
       setSelectedVoucher({
         ...selectedVoucher,
@@ -183,11 +183,24 @@ const ViewGatePass: React.FC = () => {
     }
   };
 
-  // Filtered data based on search query (by party name)
+  // Filtered data based on search query (by party name) and date range
   const filteredData = voucherData.filter((row: any) => {
     const party = (row.party || row.partyName || "").toLowerCase();
     const query = searchQuery.toLowerCase();
-    return party.includes(query);
+    const matchesParty = party.includes(query);
+    // Date filtering
+    const rowDate = row.date ? row.date.slice(0, 10) : "";
+    const from = fromDate ? fromDate.slice(0, 10) : "";
+    const to = toDate ? toDate.slice(0, 10) : "";
+    let matchesDate = true;
+    if (from && to) {
+      matchesDate = rowDate >= from && rowDate <= to;
+    } else if (from) {
+      matchesDate = rowDate >= from;
+    } else if (to) {
+      matchesDate = rowDate <= to;
+    }
+    return matchesParty && matchesDate;
   });
 
   return (
@@ -238,30 +251,21 @@ const ViewGatePass: React.FC = () => {
               <TextField
                 label="From Month"
                 type="date"
-                value={fromDate}
+                value={fromDate ? fromDate.slice(0, 10) : ""}
                 onChange={(e) => setFromDate(e.target.value)}
                 InputLabelProps={{ shrink: true }}
-                sx={{ width: 100 }}
+                sx={{ width: 200 }}
+                placeholder="yyyy-mm-dd"
               />
               <TextField
                 label="To Month"
                 type="date"
-                value={toDate}
+                value={toDate ? toDate.slice(0, 10) : ""}
                 onChange={(e) => setToDate(e.target.value)}
                 InputLabelProps={{ shrink: true }}
-                sx={{ width: 100 }}
+                sx={{ width: 200 }}
+                placeholder="yyyy-mm-dd"
               />
-              <Button
-                variant="contained"
-                onClick={handleSubmitFilter}
-                sx={{
-                  bgcolor: "#3da0bd",
-                  "&:hover": { bgcolor: "#053594" },
-                  height: "40px",
-                }}
-              >
-                Submit
-              </Button>
             </Box>
           </Paper>
 
@@ -512,9 +516,11 @@ const ViewGatePass: React.FC = () => {
               <TextField
                 label="Date"
                 type="date"
-                value={editData.date || ""}
+                value={editData.date ? editData.date.slice(0, 10) : ""}
                 onChange={(e) => handleEditFieldChange("date", e.target.value)}
                 InputLabelProps={{ shrink: true }}
+                sx={{ width: 300 }}
+                placeholder="yyyy-mm-dd"
               />
               <TextField
                 label="Party Name"

@@ -172,6 +172,8 @@ const Header: React.FC<HeaderProps> = ({ onNavigate }) => {
   const gatePassItems = [
     { id: 'add-gate-pass', label: 'Add Gate Pass' },
     { id: 'view-gate-pass', label: 'View Gate Pass' },
+    { id: 'void-gate-pass', label: 'Void Gate Pass' },
+
   ];
 
   const languages = [

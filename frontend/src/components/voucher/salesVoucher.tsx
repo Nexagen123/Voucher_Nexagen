@@ -31,8 +31,6 @@ interface SalesItem {
   discPercent: number; // Discount percentage
   exDisc: number;    // Extra discount percentage
   total: number;
-  debit?: number;
-  credit?: number;
 }
 
 interface Party {
@@ -92,8 +90,6 @@ const SalesVoucher: React.FC = () => {
       discPercent: 0,
       exDisc: 0,
       total: 0,
-      debit: 0,
-      credit: 0,
     },
   ]);
 
@@ -169,10 +165,19 @@ const SalesVoucher: React.FC = () => {
       discPercent: 0,
       exDisc: 0,
       total: 0,
-      debit: 0,
-      credit: 0,
     };
     setSalesItems([...salesItems, newItem]);
+  };
+
+  // Function to delete a row
+  const deleteRow = (id: string) => {
+    // Don't allow deletion if it's the only row
+    if (salesItems.length <= 1) {
+      alert("At least one item is required");
+      return;
+    }
+
+    setSalesItems(salesItems.filter(item => item.id !== id));
   };
 
   // Function to handle form submission
@@ -629,10 +634,7 @@ const SalesVoucher: React.FC = () => {
                   Total
                 </TableCell>
                 <TableCell sx={{ fontWeight: "bold", minWidth: 100, p: 2 }}>
-                  Debit
-                </TableCell>
-                <TableCell sx={{ fontWeight: "bold", minWidth: 100, p: 2 }}>
-                  Credit
+                  Actions
                 </TableCell>
                 {/* Removed ACTIONS column */}
               </TableRow>
@@ -833,40 +835,28 @@ const SalesVoucher: React.FC = () => {
                     />
                   </TableCell>
                   <TableCell sx={{ p: 2 }}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      type="number"
-                      value={item.debit || ""}
-                      onChange={(e) =>
-                        handleInputChange(
-                          item.id,
-                          "debit",
-                          Number(e.target.value)
-                        )
-                      }
-                      placeholder="0"
+                    <Button
                       variant="outlined"
-                    />
-                  </TableCell>
-                  <TableCell sx={{ p: 2 }}>
-                    <TextField
-                      fullWidth
                       size="small"
-                      type="number"
-                      value={item.credit || ""}
-                      onChange={(e) =>
-                        handleInputChange(
-                          item.id,
-                          "credit",
-                          Number(e.target.value)
-                        )
-                      }
-                      placeholder="0"
-                      variant="outlined"
-                    />
+                      startIcon={<DeleteIcon />}
+                      onClick={() => deleteRow(item.id)}
+                      disabled={salesItems.length <= 1}
+                      sx={{
+                        borderColor: '#f44336',
+                        color: '#f44336',
+                        '&:hover': {
+                          borderColor: '#d32f2f',
+                          backgroundColor: '#ffebee'
+                        },
+                        '&:disabled': {
+                          borderColor: '#cccccc',
+                          color: '#cccccc'
+                        }
+                      }}
+                    >
+                      Delete
+                    </Button>
                   </TableCell>
-                  {/* Removed ACTIONS cell */}
                 </TableRow>
               ))}
             </TableBody>

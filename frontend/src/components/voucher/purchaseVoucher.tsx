@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Paper,
@@ -14,8 +14,16 @@ import {
   Card,
   IconButton,
   Autocomplete,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  CircularProgress,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import { Add as AddIcon, Delete as DeleteIcon } from "@mui/icons-material";
+import { showallcategory, addVoucher } from "../../api/axios";
 
 
 // Define interfaces for type safety
@@ -28,13 +36,18 @@ interface PurchaseItem {
   unit: string;
   gst: number;
   total: number;
-  debit?: number;   // Added
-  credit?: number;  // Added
 }
 
 interface Supplier {
   id: string;
   name: string;
+}
+
+interface Category {
+  _id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 const PurchaseVoucher: React.FC = () => {
@@ -47,15 +60,9 @@ const PurchaseVoucher: React.FC = () => {
     { id: "5", name: "Premium Goods Co." },
   ]);
 
-  // Sample categories
-  const [categories] = useState<string[]>([
-    "Electronics",
-    "Clothing",
-    "Food & Beverages",
-    "Books",
-    "Home & Garden",
-    "Furniture",
-  ]);
+  // Categories state - REAL categories from API
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState<boolean>(false);
 
   // Sample units
   const [units] = useState<string[]>([
@@ -81,6 +88,56 @@ const PurchaseVoucher: React.FC = () => {
   const [selectedSupplier, setSelectedSupplier] = useState("");
   const [closingBalance, setClosingBalance] = useState("");
 
+  // Snackbar state
+  const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
+  const [snackbarMessage, setSnackbarMessage] = useState<string>('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'warning'>('success');
+  const [saving, setSaving] = useState<boolean>(false);
+
+  // Helper function to show snackbar
+  const showSnackbar = (message: string, severity: 'success' | 'error' | 'warning' = 'success') => {
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity);
+    setSnackbarOpen(true);
+  };
+
+  // Fetch categories from backend - EXACT COPY from addStock.tsx
+  const fetchCategories = async () => {
+    try {
+      setLoadingCategories(true);
+      console.log('Fetching categories...');
+
+      const response = await showallcategory();
+      const data = response.data;
+      console.log('Categories data:', data);
+
+      // The backend returns categories directly as an array
+      if (Array.isArray(data) && data.length > 0) {
+        setCategories(data);
+      } else if (data.success === false) {
+        showSnackbar('No categories found: ' + (data.message || 'Please add some categories first'), 'warning');
+        setCategories([]);
+      } else {
+        setCategories([]);
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      if (error instanceof Error) {
+        showSnackbar('Error fetching categories: ' + error.message, 'error');
+      } else {
+        showSnackbar('Error fetching categories', 'error');
+      }
+      setCategories([]);
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+
+  // Load categories on component mount
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
   // State for purchase items
   const [purchaseItems, setPurchaseItems] = useState<PurchaseItem[]>([
     {
@@ -92,8 +149,6 @@ const PurchaseVoucher: React.FC = () => {
       unit: "",
       gst: 0,
       total: 0,
-      debit: 0,    // Added
-      credit: 0,   // Added
     },
   ]);
 
@@ -151,10 +206,19 @@ const PurchaseVoucher: React.FC = () => {
       unit: "",
       gst: 0,
       total: 0,
-      debit: 0,    // Added
-      credit: 0,   // Added
     };
     setPurchaseItems([...purchaseItems, newItem]);
+  };
+
+  // Function to delete a row
+  const deleteRow = (id: string) => {
+    // Don't allow deletion if it's the only row
+    if (purchaseItems.length <= 1) {
+      showSnackbar("At least one item is required", 'warning');
+      return;
+    }
+
+    setPurchaseItems(purchaseItems.filter(item => item.id !== id));
   };
 
   // Function to handle form submission
@@ -173,68 +237,100 @@ const PurchaseVoucher: React.FC = () => {
       );
 
     if (!isValid) {
-      alert("Please fill in all required fields.");
+      showSnackbar("Please fill in all required fields.", 'error');
       return;
     }
 
     try {
-      // Prepare data for backend API
+      setSaving(true);
+
+      // Set dbprefix if not already set
+      if (!localStorage.getItem('dbprefix')) {
+        localStorage.setItem('dbprefix', 'fast');
+      }
+
+      // Prepare data for backend API according to voucherController.js structure
       const voucherData = {
-        date: formatDateToDisplay(voucherDate), // Convert to dd/mm/yyyy for display/storage
-        supplier: selectedSupplier,
-        items: purchaseItems.map(item => ({
-          itemName: item.item,
-          quantity: item.quantity,
-          rate: item.rate,
-          unit: item.unit,
-          category: item.category
-        }))
+        date: new Date(voucherDate).toISOString(), // ISO date string
+        type: "purchase", // Voucher type
+        transactions: purchaseItems.map(item => ({
+          account: "674a1234567890abcdef1234", // Temporary account ID - replace with real supplier account
+          debit: item.total, // Purchase amount goes to debit
+          credit: 0,
+          description: `Purchase of ${item.item} - ${item.quantity} ${item.unit} @ ${item.rate}`,
+          metadata: {
+            itemName: item.item,
+            quantity: item.quantity,
+            rate: item.rate,
+            unit: item.unit,
+            category: item.category,
+            gst: item.gst,
+            total: item.total
+          }
+        })),
+        metadata: {
+          supplier: selectedSupplier,
+          voucherType: "purchase",
+          totalAmount: purchaseItems.reduce((sum, item) => sum + item.total, 0),
+          itemsCount: purchaseItems.length
+        }
       };
 
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:8000/api/vouchers/purchase', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(voucherData),
+      console.log("Sending voucher data:", voucherData);
+      console.log("Headers being sent:", {
+        'Content-Type': 'application/json',
+        'dbprefix': localStorage.getItem('dbprefix')
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      const response = await addVoucher(voucherData);
+      console.log("Purchase voucher response:", response);
 
-      const result = await response.json();
-      console.log("Purchase voucher saved:", result);
+      if (response.data && response.data.message) {
+        const voucherId = response.data.newVoucher?.voucher_id || 'Unknown';
+        showSnackbar(`Purchase voucher saved successfully! Voucher ID: ${voucherId}`, 'success');
 
-      if (result.success) {
-        alert(`Purchase voucher saved successfully! Voucher ID: ${result.data.id}`);
+        // Reset form
+        setVoucherDate("");
+        setSelectedSupplier("");
+        setClosingBalance("");
+        setPurchaseItems([
+          {
+            id: generateId(),
+            item: "",
+            category: "",
+            rate: 0,
+            quantity: 0,
+            unit: "",
+            gst: 0,
+            total: 0,
+          },
+        ]);
       } else {
-        throw new Error(result.message || 'Failed to save voucher');
+        throw new Error('Failed to save voucher');
       }
-
-      // Reset form
-      setVoucherDate("");
-      setSelectedSupplier("");
-      setClosingBalance("");
-      setPurchaseItems([
-        {
-          id: generateId(),
-          item: "",
-          category: "",
-          rate: 0,
-          quantity: 0,
-          unit: "",
-          gst: 0,
-          total: 0,
-          debit: 0,    // Added
-          credit: 0,   // Added
-        },
-      ]);
     } catch (error) {
       console.error('Error saving purchase voucher:', error);
-      alert('Failed to save purchase voucher. Please check if the backend server is running.');
+
+      // More detailed error handling
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as any;
+        console.error('Response data:', axiosError.response?.data);
+        console.error('Response status:', axiosError.response?.status);
+
+        if (axiosError.response?.data?.message) {
+          showSnackbar('Failed to save voucher: ' + axiosError.response.data.message, 'error');
+        } else if (axiosError.response?.status === 500) {
+          showSnackbar('Server error: Please check if database connection is working', 'error');
+        } else {
+          showSnackbar(`HTTP Error ${axiosError.response?.status}: ${axiosError.message}`, 'error');
+        }
+      } else if (error instanceof Error) {
+        showSnackbar('Failed to save purchase voucher: ' + error.message, 'error');
+      } else {
+        showSnackbar('Failed to save purchase voucher. Please check if the backend server is running.', 'error');
+      }
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -412,33 +508,23 @@ const PurchaseVoucher: React.FC = () => {
 
                 <Box>
                   <Typography variant="body2" color="textSecondary" sx={{ mb: 0.5 }}>Category</Typography>
-                  <Autocomplete
-                    size="small"
-                    options={categories}
-                    getOptionLabel={(option) => option}
-                    value={item.category || null}
-                    onChange={(_, newValue) => {
-                      handleInputChange(item.id, "category", newValue || '');
-                    }}
-                    inputValue={item.category}
-                    onInputChange={(_, newInputValue) => {
-                      handleInputChange(item.id, "category", newInputValue);
-                    }}
-                    freeSolo={true}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        placeholder="Select or type category"
-                        variant="outlined"
-                      />
-                    )}
-                    filterOptions={(options, { inputValue }) => {
-                      const filtered = options.filter((option) =>
-                        option.toLowerCase().includes(inputValue.toLowerCase())
-                      );
-                      return filtered;
-                    }}
-                  />
+                  <FormControl fullWidth size="small">
+                    <Select
+                      value={item.category}
+                      onChange={(e) => handleInputChange(item.id, "category", e.target.value)}
+                      displayEmpty
+                      disabled={loadingCategories}
+                    >
+                      <MenuItem value="">
+                        <em>{loadingCategories ? "Loading categories..." : "Select category"}</em>
+                      </MenuItem>
+                      {categories.map((category) => (
+                        <MenuItem key={category._id} value={category.name}>
+                          {category.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
                 </Box>
 
                 <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
@@ -510,36 +596,38 @@ const PurchaseVoucher: React.FC = () => {
                   </Box>
                 </Box>
 
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
-                  <Box>
-                    <Typography variant="body2" color="textSecondary" sx={{ mb: 0.5 }}>Debit</Typography>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      type="number"
-                      value={item.debit || ""}
-                      onChange={(e) => handleInputChange(item.id, "debit", Number(e.target.value))}
-                      placeholder="0"
-                    />
-                  </Box>
-                  <Box>
-                    <Typography variant="body2" color="textSecondary" sx={{ mb: 0.5 }}>Credit</Typography>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      type="number"
-                      value={item.credit || ""}
-                      onChange={(e) => handleInputChange(item.id, "credit", Number(e.target.value))}
-                      placeholder="0"
-                    />
-                  </Box>
-                </Box>
+
 
                 <Box sx={{ p: 1, backgroundColor: '#e8f5e8', borderRadius: 1 }}>
                   <Typography variant="body2" color="textSecondary" sx={{ mb: 0.5 }}>Total</Typography>
                   <Typography variant="h6" color="success.main" fontWeight="bold">
                     ${item.total.toFixed(2)}
                   </Typography>
+                </Box>
+
+                {/* Delete Button for Mobile */}
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<DeleteIcon />}
+                    onClick={() => deleteRow(item.id)}
+                    disabled={purchaseItems.length <= 1}
+                    sx={{
+                      borderColor: '#f44336',
+                      color: '#f44336',
+                      '&:hover': {
+                        borderColor: '#d32f2f',
+                        backgroundColor: '#ffebee'
+                      },
+                      '&:disabled': {
+                        borderColor: '#cccccc',
+                        color: '#cccccc'
+                      }
+                    }}
+                  >
+                    Delete Row
+                  </Button>
                 </Box>
               </Box>
             </Card>
@@ -578,12 +666,8 @@ const PurchaseVoucher: React.FC = () => {
                   TOTAL
                 </TableCell>
                 <TableCell sx={{ fontWeight: "bold", minWidth: 100, p: 2 }}>
-                  Debit
+                  ACTIONS
                 </TableCell>
-                <TableCell sx={{ fontWeight: "bold", minWidth: 100, p: 2 }}>
-                  Credit
-                </TableCell>
-                {/* Removed ACTIONS column */}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -619,33 +703,23 @@ const PurchaseVoucher: React.FC = () => {
                     />
                   </TableCell>
                   <TableCell sx={{ p: 2 }}>
-                    <Autocomplete
-                      size="small"
-                      options={categories}
-                      getOptionLabel={(option) => option}
-                      value={item.category || null}
-                      onChange={(_, newValue) => {
-                        handleInputChange(item.id, "category", newValue || '');
-                      }}
-                      inputValue={item.category}
-                      onInputChange={(_, newInputValue) => {
-                        handleInputChange(item.id, "category", newInputValue);
-                      }}
-                      freeSolo={true}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          placeholder="Select or type category"
-                          variant="outlined"
-                        />
-                      )}
-                      filterOptions={(options, { inputValue }) => {
-                        const filtered = options.filter((option) =>
-                          option.toLowerCase().includes(inputValue.toLowerCase())
-                        );
-                        return filtered;
-                      }}
-                    />
+                    <FormControl fullWidth size="small">
+                      <Select
+                        value={item.category}
+                        onChange={(e) => handleInputChange(item.id, "category", e.target.value)}
+                        displayEmpty
+                        disabled={loadingCategories}
+                      >
+                        <MenuItem value="">
+                          <em>{loadingCategories ? "Loading categories..." : "Select category"}</em>
+                        </MenuItem>
+                        {categories.map((category) => (
+                          <MenuItem key={category._id} value={category.name}>
+                            {category.name}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
                   </TableCell>
                   <TableCell sx={{ p: 2 }}>
                     <TextField
@@ -742,40 +816,28 @@ const PurchaseVoucher: React.FC = () => {
                     />
                   </TableCell>
                   <TableCell sx={{ p: 2 }}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      type="number"
-                      value={item.debit || ""}
-                      onChange={(e) =>
-                        handleInputChange(
-                          item.id,
-                          "debit",
-                          Number(e.target.value)
-                        )
-                      }
-                      placeholder="0"
+                    <Button
                       variant="outlined"
-                    />
-                  </TableCell>
-                  <TableCell sx={{ p: 2 }}>
-                    <TextField
-                      fullWidth
                       size="small"
-                      type="number"
-                      value={item.credit || ""}
-                      onChange={(e) =>
-                        handleInputChange(
-                          item.id,
-                          "credit",
-                          Number(e.target.value)
-                        )
-                      }
-                      placeholder="0"
-                      variant="outlined"
-                    />
+                      startIcon={<DeleteIcon />}
+                      onClick={() => deleteRow(item.id)}
+                      disabled={purchaseItems.length <= 1}
+                      sx={{
+                        borderColor: '#f44336',
+                        color: '#f44336',
+                        '&:hover': {
+                          borderColor: '#d32f2f',
+                          backgroundColor: '#ffebee'
+                        },
+                        '&:disabled': {
+                          borderColor: '#cccccc',
+                          color: '#cccccc'
+                        }
+                      }}
+                    >
+                      Delete
+                    </Button>
                   </TableCell>
-                  {/* Removed ACTIONS cell */}
                 </TableRow>
               ))}
             </TableBody>
@@ -818,10 +880,14 @@ const PurchaseVoucher: React.FC = () => {
           <Button
             variant="contained"
             onClick={handleSave}
+            disabled={saving}
             sx={{
               backgroundColor: "#4caf50",
               "&:hover": {
                 backgroundColor: "#45a049",
+              },
+              "&:disabled": {
+                backgroundColor: "#cccccc",
               },
               px: { xs: 3, md: 4 },
               py: { xs: 1.5, md: 1 },
@@ -830,11 +896,34 @@ const PurchaseVoucher: React.FC = () => {
               maxWidth: { xs: '300px', sm: 'none' }
             }}
           >
-            SAVE
+            {saving ? (
+              <>
+                <CircularProgress size={20} sx={{ mr: 1, color: 'white' }} />
+                Saving...
+              </>
+            ) : (
+              'SAVE'
+            )}
           </Button>
         </Box>
       </Paper>
       </Box>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbarOpen(false)}
+          severity={snackbarSeverity}
+          sx={{ width: '100%' }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

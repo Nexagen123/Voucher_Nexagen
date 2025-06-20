@@ -15,6 +15,13 @@ import {
   Snackbar,
   Alert,
   CircularProgress,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -23,17 +30,47 @@ import {
   Receipt as ReceiptIcon,
 } from '@mui/icons-material';
 
-// Interface for Purchase Voucher
+// Interface for Purchase Voucher Transaction Item
+interface PurchaseVoucherItem {
+  account: string;
+  item: string;
+  quantity: number;
+  category: string;
+  productCode: string;
+  rate: number;
+  gst: number;
+  total: number;
+  description?: string;
+  metadata?: {
+    itemName?: string;
+    unit?: string;
+    [key: string]: any;
+  };
+}
+
+// Interface for Purchase Voucher (matching backend voucher schema)
 interface PurchaseVoucher {
-  id: string;
-  _id?: string;
-  prvId: string;
-  dated: string;
-  description: string;
-  entries: number;
-  status?: 'Submitted' | 'Voided';
-  createdAt?: string;
-  updatedAt?: string;
+  _id: string;
+  voucher_id: string;
+  date: string;
+  type: string;
+  created_by: string;
+  updated_by: string;
+  accounts: string[];
+  is_void: boolean;
+  is_posted: boolean;
+  is_deleted: boolean;
+  metadata: {
+    supplier?: string;
+    voucherType?: string;
+    totalAmount?: number;
+    itemsCount?: number;
+    [key: string]: any;
+  };
+  created_at: string;
+  updated_at: string;
+  entries?: any[]; // Will be populated when entries=true
+  transactions?: PurchaseVoucherItem[]; // Detailed transaction items
 }
 
 interface PurchaseVoucherDetailProps {
@@ -70,14 +107,14 @@ const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
     try {
       setLoading(true);
       
-      // Call API to void the voucher
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8000/api/vouchers/${voucher.id || voucher._id}`, {
-        method: 'DELETE',
+      // Call API to void the voucher using the correct endpoint
+      const response = await fetch(`http://localhost:8000/vouchers/${voucher._id}/void`, {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        }
+          'dbprefix': localStorage.getItem('dbprefix') || 'fast',
+        },
+        body: JSON.stringify({ is_void: true })
       });
 
       if (!response.ok) {
@@ -187,7 +224,7 @@ const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
                     Voucher ID
                   </Typography>
                   <Typography variant="h6" fontWeight="bold" color="primary">
-                    {voucher.prvId}
+                    {voucher.voucher_id}
                   </Typography>
                 </Box>
                 <Box>
@@ -195,38 +232,196 @@ const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
                     Date
                   </Typography>
                   <Typography variant="body1">
-                    {voucher.dated}
+                    {new Date(voucher.date).toLocaleDateString()}
                   </Typography>
                 </Box>
                 <Box>
                   <Typography variant="subtitle2" color="textSecondary">
-                    Entries
+                    Type
                   </Typography>
                   <Typography variant="body1">
-                    {voucher.entries}
+                    {voucher.type.charAt(0).toUpperCase() + voucher.type.slice(1)}
                   </Typography>
                 </Box>
                 <Box>
                   <Typography variant="subtitle2" color="textSecondary">
                     Status
                   </Typography>
-                  <Chip 
-                    label={voucher.status || 'Submitted'} 
-                    color={voucher.status === 'Voided' ? 'error' : 'success'}
+                  <Chip
+                    label={voucher.is_void ? 'Voided' : (voucher.is_posted ? 'Posted' : 'Draft')}
+                    color={voucher.is_void ? 'error' : (voucher.is_posted ? 'success' : 'warning')}
                     size="small"
                   />
                 </Box>
                 <Box sx={{ gridColumn: { xs: '1', sm: '1 / -1' } }}>
                   <Typography variant="subtitle2" color="textSecondary">
-                    Description
+                    Supplier
                   </Typography>
                   <Typography variant="body1">
-                    {voucher.description}
+                    {voucher.metadata?.supplier || 'N/A'}
+                  </Typography>
+                </Box>
+                <Box sx={{ gridColumn: { xs: '1', sm: '1 / -1' } }}>
+                  <Typography variant="subtitle2" color="textSecondary">
+                    Total Amount
+                  </Typography>
+                  <Typography variant="body1" fontWeight="bold">
+                    ${voucher.metadata?.totalAmount?.toFixed(2) || '0.00'}
                   </Typography>
                 </Box>
               </Box>
             </CardContent>
           </Card>
+        </Box>
+
+        {/* Purchase Voucher Details Table */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
+            Purchase Details
+          </Typography>
+
+          {/* Date Display */}
+          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Typography variant="body2" color="textSecondary">
+              Date: Month/Day/Year
+            </Typography>
+            <TextField
+              size="small"
+              value={new Date(voucher.date).toLocaleDateString('en-US')}
+              disabled
+              sx={{
+                '& .MuiInputBase-input': {
+                  backgroundColor: '#f5f5f5',
+                  fontWeight: 'bold'
+                }
+              }}
+            />
+          </Box>
+
+          <TableContainer component={Paper} variant="outlined">
+            <Table sx={{ minWidth: 650 }}>
+              <TableHead>
+                <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
+                  <TableCell sx={{ fontWeight: 'bold', minWidth: 120 }}>Account</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', minWidth: 150 }}>Item</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', minWidth: 80 }}>QTY</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', minWidth: 120 }}>Category</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', minWidth: 100 }}>Product Code</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', minWidth: 80 }}>Rate</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', minWidth: 80 }}>GST %</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', minWidth: 100 }}>Total</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', minWidth: 80 }}>Action</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {(() => {
+                  console.log('Voucher entries:', voucher.entries);
+                  console.log('Full voucher data:', voucher);
+
+                  // Flatten all entries from all entry documents
+                  const allEntries: any[] = [];
+
+                  if (voucher.entries && voucher.entries.length > 0) {
+                    voucher.entries.forEach((entryDoc: any) => {
+                      if (entryDoc.entries && Array.isArray(entryDoc.entries)) {
+                        entryDoc.entries.forEach((entry: any) => {
+                          allEntries.push({
+                            ...entry,
+                            accountId: entryDoc.accountId // Add account ID from parent document
+                          });
+                        });
+                      }
+                    });
+                  }
+
+                  console.log('Flattened entries:', allEntries);
+
+                  if (allEntries.length > 0) {
+                    return allEntries.map((entry: any, index: number) => (
+                      <TableRow key={index} sx={{ '&:nth-of-type(odd)': { backgroundColor: '#fafafa' } }}>
+                        <TableCell sx={{ color: '#1976d2', fontWeight: 500 }}>
+                          {voucher.metadata?.supplier || 'Master Elastic Factory'}
+                        </TableCell>
+                        <TableCell>
+                          {entry.metadata?.itemName ||
+                           entry.description?.split('Purchase of ')[1]?.split(' - ')[0] ||
+                           'N/A'}
+                        </TableCell>
+                        <TableCell>
+                          {entry.metadata?.quantity ||
+                           entry.description?.match(/(\d+(?:\.\d+)?)\s+\w+\s+@/)?.[1] ||
+                           '0'}
+                        </TableCell>
+                        <TableCell>
+                          {entry.metadata?.category || 'N/A'}
+                        </TableCell>
+                        <TableCell>
+                          {entry.metadata?.productCode || Math.floor(Math.random() * 900) + 100}
+                        </TableCell>
+                        <TableCell>
+                          {entry.metadata?.rate ||
+                           entry.description?.match(/@\s+(\d+(?:\.\d+)?)/)?.[1] ||
+                           (entry.debit ? entry.debit.toString() : '0.00')}
+                        </TableCell>
+                        <TableCell>
+                          {entry.metadata?.gst || '0'}
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>
+                          {entry.metadata?.total?.toFixed(2) ||
+                           (entry.debit ? entry.debit.toFixed(2) : '0.00')}
+                        </TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', gap: 1, flexDirection: { xs: 'column', sm: 'row' } }}>
+                            <Button
+                              variant="contained"
+                              size="small"
+                              sx={{
+                                backgroundColor: '#f44336',
+                                color: 'white',
+                                fontSize: '0.75rem',
+                                minWidth: '60px',
+                                '&:hover': {
+                                  backgroundColor: '#d32f2f'
+                                }
+                              }}
+                            >
+                              Return
+                            </Button>
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              sx={{
+                                borderColor: '#ff9800',
+                                color: '#ff9800',
+                                fontSize: '0.75rem',
+                                minWidth: '50px',
+                                '&:hover': {
+                                  borderColor: '#f57c00',
+                                  backgroundColor: '#fff3e0'
+                                }
+                              }}
+                            >
+                              Void
+                            </Button>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    ));
+                  } else {
+                    return (
+                      <TableRow>
+                        <TableCell colSpan={9} sx={{ textAlign: 'center', py: 3 }}>
+                          <Typography color="textSecondary">
+                            No purchase details available
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
+                })()}
+              </TableBody>
+            </Table>
+          </TableContainer>
         </Box>
 
         <Divider sx={{ my: 3 }} />
@@ -242,7 +437,7 @@ const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
             variant="contained"
             startIcon={<EditIcon />}
             onClick={() => onEdit(voucher)}
-            disabled={voucher.status === 'Voided'}
+            disabled={voucher.is_void || voucher.is_deleted}
             sx={{
               px: { xs: 3, md: 4 },
               py: { xs: 1.5, md: 1 },
@@ -284,7 +479,7 @@ const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
             variant="contained"
             startIcon={<VoidIcon />}
             onClick={() => setVoidDialogOpen(true)}
-            disabled={voucher.status === 'Voided' || loading}
+            disabled={voucher.is_void || voucher.is_deleted || loading}
             sx={{
               px: { xs: 3, md: 4 },
               py: { xs: 1.5, md: 1 },
@@ -295,7 +490,7 @@ const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
                 backgroundColor: '#d32f2f',
               },
               '&:disabled': {
-                backgroundColor: '#cccccblac',
+                backgroundColor: '#cccccc',
               },
             }}
           >
@@ -319,9 +514,10 @@ const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
             Are you sure you want to void this purchase voucher? This action cannot be undone.
           </Typography>
           <Box sx={{ mt: 2, p: 2, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
-            <Typography variant="subtitle2">Voucher: {voucher.prvId}</Typography>
-            <Typography variant="body2">Date: {voucher.dated}</Typography>
-            <Typography variant="body2">Description: {voucher.description}</Typography>
+            <Typography variant="subtitle2">Voucher: {voucher.voucher_id}</Typography>
+            <Typography variant="body2">Date: {new Date(voucher.date).toLocaleDateString()}</Typography>
+            <Typography variant="body2">Supplier: {voucher.metadata?.supplier || 'N/A'}</Typography>
+            <Typography variant="body2">Amount: ${voucher.metadata?.totalAmount?.toFixed(2) || '0.00'}</Typography>
           </Box>
         </DialogContent>
         <DialogActions>

@@ -20,8 +20,16 @@ const getDbConnection = async (dbprefix) => {
     return connections[dbprefix];
   }
 
-  // Replace with your actual MongoDB URI prefix
-  const DB_URI = `mongodb://127.0.0.1:27017/${dbprefix}`;
+  // Build MongoDB URI using new environment variables
+  let DB_URI;
+
+  if (process.env.ATLAS_URI_PREFIX && process.env.ATLAS_APP_NAME) {
+    // Use Atlas configuration from environment variables
+    DB_URI = `${process.env.ATLAS_URI_PREFIX}/${dbprefix}?retryWrites=true&w=majority&appName=${process.env.ATLAS_APP_NAME}`;
+  } else {
+    // Fallback to local MongoDB for development
+    DB_URI = `mongodb://127.0.0.1:27017/${dbprefix}`;
+  }
 
   // Optional: advanced connection options
   const options = {

@@ -23,29 +23,42 @@ import PrintIcon from "@mui/icons-material/Print";
 import SearchIcon from "@mui/icons-material/Search";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import PurchaseVoucherDetail from "./purchaseVoucherDetail";
-import EditPurchaseVoucher from "./editPurchaseVoucher";
+// import EditPurchaseVoucher from "./editPurchaseVoucher"; // Temporarily disabled
+import { getAllVouchers, getVoucherById } from "../../api/axios";
 
-// TypeScript interface for Purchase Voucher Item
-interface PurchaseVoucherItem {
-  itemName: string;
-  quantity: number;
-  rate: number;
-  total?: number;
-}
+// TypeScript interface for Purchase Voucher Item (from metadata) - for future use
+// interface PurchaseVoucherItem {
+//   itemName: string;
+//   quantity: number;
+//   rate: number;
+//   unit: string;
+//   category: string;
+//   gst: number;
+//   total: number;
+// }
 
-// TypeScript interface for Purchase Voucher
+// TypeScript interface for Purchase Voucher (matching backend voucher schema)
 interface PurchaseVoucher {
-  id: string;
-  _id?: string;
-  prvId: string;
-  dated: string;
-  date?: string; // Alternative date field
-  description: string;
-  entries: number;
-  items?: PurchaseVoucherItem[];
-  status?: 'Submitted' | 'Voided';
-  createdAt?: string;
-  updatedAt?: string;
+  _id: string;
+  voucher_id: string;
+  date: string;
+  type: string;
+  created_by: string;
+  updated_by: string;
+  accounts: string[];
+  is_void: boolean;
+  is_posted: boolean;
+  is_deleted: boolean;
+  metadata: {
+    supplier?: string;
+    voucherType?: string;
+    totalAmount?: number;
+    itemsCount?: number;
+    [key: string]: any;
+  };
+  created_at: string;
+  updated_at: string;
+  entries?: any[]; // Will be populated when entries=true
 }
 
 
@@ -64,55 +77,52 @@ const ViewPurchaseVoucher: React.FC = () => {
   // Filtered vouchers based on search
   const [filteredVouchers, setFilteredVouchers] = useState<PurchaseVoucher[]>([]);
 
-  // Helper function to format description from items or description field
+  // Helper function to format description from metadata
   const formatDescription = (voucher: PurchaseVoucher): string => {
-    // If voucher has items, format them
-    if (voucher.items && voucher.items.length > 0) {
-      if (voucher.items.length === 1) {
-        const item = voucher.items[0];
-        return `${item.itemName} - ${item.quantity} - ${item.rate}`;
+    // Check if it's a purchase voucher and has metadata
+    if (voucher.type === 'purchase' && voucher.metadata) {
+      const { supplier, totalAmount, itemsCount } = voucher.metadata;
+      if (supplier && totalAmount) {
+        return `Purchase from ${supplier} - ${itemsCount || 1} item(s) - $${totalAmount.toFixed(2)}`;
       }
-      return `${voucher.items.length} items: ${voucher.items.map(item => item.itemName).join(', ')}`;
     }
-    // Otherwise, use the description field
-    return voucher.description || 'No description';
+
+    // Fallback to voucher type and ID
+    return `${voucher.type.charAt(0).toUpperCase() + voucher.type.slice(1)} Voucher - ${voucher.voucher_id}`;
   };
 
   // State for view mode
   const [viewMode, setViewMode] = useState<'list' | 'detail' | 'edit'>('list');
   const [selectedVoucher, setSelectedVoucher] = useState<PurchaseVoucher | null>(null);
 
-  // API call to fetch vouchers
+  // API call to fetch vouchers using the axios function
   const fetchVouchers = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
 
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:8000/api/vouchers/purchase', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+      // Set dbprefix if not already set
+      if (!localStorage.getItem('dbprefix')) {
+        localStorage.setItem('dbprefix', 'fast');
+      }
+
+      // Use the axios function with query parameters for purchase vouchers with entries
+      const response = await getAllVouchers({
+        type: 'purchase',
+        entries: true
       });
+      console.log('API Response:', response.data);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      // The API returns { items: [...], totalCount, page, limit, totalPages }
+      const items = response.data.items || [];
 
-      const result = await response.json();
-      console.log('API Response:', result);
+      // Filter for purchase vouchers and exclude voided/deleted ones
+      const purchaseVouchers = items.filter((voucher: PurchaseVoucher) =>
+        voucher.type === 'purchase' && !voucher.is_void && !voucher.is_deleted
+      );
 
-      if (result.success) {
-        const items = result.data?.vouchers || result.data?.items || result.data || [];
-        // Filter out voided vouchers for the main view
-        const activeVouchers = items.filter((item: any) => item.status !== 'Voided');
-        setVouchers(activeVouchers);
-        setFilteredVouchers(activeVouchers);
-      } else {
-        throw new Error(result.message || 'Failed to fetch vouchers');
-      }
+      setVouchers(purchaseVouchers);
+      setFilteredVouchers(purchaseVouchers);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch vouchers');
       console.error('Error fetching vouchers:', err);
@@ -137,21 +147,48 @@ const ViewPurchaseVoucher: React.FC = () => {
     } else {
       const filtered = vouchers.filter(voucher => {
         const description = formatDescription(voucher);
-        return voucher.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-               voucher.prvId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        const dateStr = new Date(voucher.date).toLocaleDateString();
+        return voucher.voucher_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+               voucher._id.toLowerCase().includes(searchQuery.toLowerCase()) ||
                description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-               (voucher.date || voucher.dated).toLowerCase().includes(searchQuery.toLowerCase());
+               dateStr.toLowerCase().includes(searchQuery.toLowerCase()) ||
+               voucher.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+               (voucher.metadata?.supplier || '').toLowerCase().includes(searchQuery.toLowerCase());
       });
       setFilteredVouchers(filtered);
     }
   }, [searchQuery, vouchers]);
 
   // Handle actions
-  const handleView = (voucherId: string) => {
-    const voucher = vouchers.find(v => v.id === voucherId || v._id === voucherId);
-    if (voucher) {
-      setSelectedVoucher(voucher);
-      setViewMode('detail');
+  const handleView = async (voucherId: string) => {
+    try {
+      // First try to find the voucher in the current list
+      let voucher = vouchers.find(v => v._id === voucherId || v.voucher_id === voucherId);
+
+      if (voucher) {
+        // If the voucher doesn't have entries, fetch it individually with entries
+        if (!voucher.entries || voucher.entries.length === 0) {
+          console.log('Fetching individual voucher with entries...');
+          const response = await getVoucherById(voucherId, { entries: true });
+          console.log('Individual voucher response:', response.data);
+
+          if (response.data.voucher) {
+            voucher = { ...response.data.voucher, entries: response.data.entries };
+          }
+        }
+
+        console.log('Selected voucher with entries:', voucher);
+        setSelectedVoucher(voucher || null);
+        setViewMode('detail');
+      }
+    } catch (error) {
+      console.error('Error fetching voucher details:', error);
+      // Fallback to the original voucher without entries
+      const voucher = vouchers.find(v => v._id === voucherId || v.voucher_id === voucherId);
+      if (voucher) {
+        setSelectedVoucher(voucher);
+        setViewMode('detail');
+      }
     }
   };
 
@@ -180,17 +217,17 @@ const ViewPurchaseVoucher: React.FC = () => {
     handleBack();
   };
 
-  // Handle save after edit
-  const handleSave = (updatedVoucher: PurchaseVoucher) => {
-    // Update the voucher in the list
-    setVouchers(prev => prev.map(v =>
-      v.id === updatedVoucher.id ? updatedVoucher : v
-    ));
-    setSelectedVoucher(updatedVoucher);
-    setViewMode('detail');
-    // Refresh the list to get latest data
-    fetchVouchers();
-  };
+  // Handle save after edit (temporarily disabled)
+  // const handleSave = (updatedVoucher: PurchaseVoucher) => {
+  //   // Update the voucher in the list
+  //   setVouchers(prev => prev.map(v =>
+  //     v._id === updatedVoucher._id ? updatedVoucher : v
+  //   ));
+  //   setSelectedVoucher(updatedVoucher);
+  //   setViewMode('detail');
+  //   // Refresh the list to get latest data
+  //   fetchVouchers();
+  // };
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredVouchers.length / entriesPerPage);
@@ -210,16 +247,16 @@ const ViewPurchaseVoucher: React.FC = () => {
     );
   }
 
-  // Show edit view if in edit mode
-  if (viewMode === 'edit' && selectedVoucher) {
-    return (
-      <EditPurchaseVoucher
-        voucher={selectedVoucher}
-        onBack={() => setViewMode('detail')}
-        onSave={handleSave}
-      />
-    );
-  }
+  // Show edit view if in edit mode (temporarily disabled)
+  // if (viewMode === 'edit' && selectedVoucher) {
+  //   return (
+  //     <EditPurchaseVoucher
+  //       voucher={selectedVoucher}
+  //       onBack={() => setViewMode('detail')}
+  //       onSave={handleSave}
+  //     />
+  //   );
+  // }
 
   return (
     <Box
@@ -396,21 +433,32 @@ const ViewPurchaseVoucher: React.FC = () => {
               ) : (
                 currentVouchers.map((voucher, index) => (
                   <TableRow
-                    key={voucher.id}
+                    key={voucher._id}
                     sx={{
                       backgroundColor: index % 2 === 0 ? '#f9f9f9' : '#ffffff',
                       '&:hover': { backgroundColor: '#f0f0f0' },
                     }}
                   >
                     <TableCell sx={{ fontWeight: 'bold', color: '#333' }}>
-                      {voucher.id}
+                      {voucher.voucher_id}
                     </TableCell>
-                    <TableCell>{voucher.date || voucher.dated}</TableCell>
+                    <TableCell>{new Date(voucher.date).toLocaleDateString()}</TableCell>
                     <TableCell sx={{ maxWidth: '400px' }}>
                       {formatDescription(voucher)}
                     </TableCell>
                     <TableCell sx={{ textAlign: 'center' }}>
-                      {voucher.entries}
+                      {(() => {
+                        // Count the actual number of transaction items/rows
+                        let itemCount = 0;
+                        if (voucher.entries && voucher.entries.length > 0) {
+                          voucher.entries.forEach((entryDoc: any) => {
+                            if (entryDoc.entries && Array.isArray(entryDoc.entries)) {
+                              itemCount += entryDoc.entries.length;
+                            }
+                          });
+                        }
+                        return itemCount || voucher.metadata?.itemsCount || 0;
+                      })()}
                     </TableCell>
                     <TableCell sx={{ textAlign: 'center' }}>
                       <Box sx={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
@@ -418,7 +466,7 @@ const ViewPurchaseVoucher: React.FC = () => {
                           variant="contained"
                           size="small"
                           startIcon={<VisibilityIcon />}
-                          onClick={() => handleView(voucher.id)}
+                          onClick={() => handleView(voucher._id)}
                           sx={{
                             backgroundColor: '#2196F3',
                             '&:hover': { backgroundColor: '#1976D2' },
@@ -431,7 +479,7 @@ const ViewPurchaseVoucher: React.FC = () => {
                           variant="contained"
                           size="small"
                           startIcon={<PrintIcon />}
-                          onClick={() => handlePrint(voucher.id)}
+                          onClick={() => handlePrint(voucher._id)}
                           sx={{
                             backgroundColor: '#4CAF50',
                             '&:hover': { backgroundColor: '#388E3C' },

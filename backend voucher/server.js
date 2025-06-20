@@ -2,6 +2,7 @@ const express  = require('express')
 const dotenv = require('dotenv')
 const cors = require('cors')
 const index = require('./route/route')
+const salesVoucher = require('./route/salesVoucher');
 const voucherRoutes = require('./route/voucherRoutes'); // 👈 add this
 const dbConnection = require('./config/dbConnection')
 
@@ -19,6 +20,7 @@ app.use(express.json());
 // Example route
 app.use('/', index)
 app.use('/vouchers', voucherRoutes);
+app.use('/sales-vouchers', salesVoucher);
 
 // Start the server
 app.listen(PORT, () => {

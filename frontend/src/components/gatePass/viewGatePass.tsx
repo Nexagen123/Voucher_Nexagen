@@ -23,6 +23,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Snackbar,
 } from "@mui/material";
 import {
   Visibility as VisibilityIcon,
@@ -30,12 +31,14 @@ import {
   Search as SearchIcon,
   NavigateNext as NavigateNextIcon,
   Edit as EditIcon,
+  Add as AddIcon,
+  Delete as DeleteIcon,
 } from "@mui/icons-material";
-import { viewGatePass } from "../../api/axios";
+import { viewGatePass, editGatePass } from "../../api/axios";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import logo from "../../assets/logo.png";
-
+import MuiAlert from "@mui/material/Alert";
 
 const ViewGatePass: React.FC = () => {
   const [fromDate, setFromDate] = useState("");
@@ -49,6 +52,12 @@ const ViewGatePass: React.FC = () => {
   const [selectedVoucher, setSelectedVoucher] = useState<any>(null);
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState<any>({});
+  const [editRows, setEditRows] = useState<any[]>([]);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">(
+    "success"
+  );
 
   const printRef = React.useRef<HTMLDivElement>(null);
 
@@ -76,7 +85,6 @@ const ViewGatePass: React.FC = () => {
     setPage(0);
   };
 
-
   const handleOpenDialog = (voucher: any, igpId?: number) => {
     setSelectedVoucher({ ...voucher, igpId });
     setOpenDialog(true);
@@ -88,13 +96,25 @@ const ViewGatePass: React.FC = () => {
   };
 
   const handleEdit = () => {
-    // Use a shallow copy to avoid direct mutation
     setEditData({
-      id: selectedVoucher.id || selectedVoucher._id || "",
+      id:
+        selectedVoucher.igpId ||
+        selectedVoucher.id ||
+        selectedVoucher._id ||
+        "",
       date: selectedVoucher.date || "",
-      partyName: selectedVoucher.partyName || selectedVoucher.party || "",
-      status: selectedVoucher.status || selectedVoucher.type || "",
+      party: selectedVoucher.party || selectedVoucher.partyName || "",
+      orderNo: selectedVoucher.orderNo || "",
+      type: selectedVoucher.type || selectedVoucher.status || "Incoming",
     });
+    setEditRows(
+      Array.isArray(selectedVoucher.rows)
+        ? selectedVoucher.rows.map((row: any) => ({
+            ...row,
+            qty: row.qty || "",
+          }))
+        : []
+    );
     setEditMode(true);
   };
 
@@ -102,51 +122,53 @@ const ViewGatePass: React.FC = () => {
     setEditData((prev: any) => ({ ...prev, [field]: value }));
   };
 
-  const handleSaveEdit = async () => {
-    // Only allow status change for open entries
-    const originalStatus = (
-      selectedVoucher.status ||
-      selectedVoucher.type ||
-      ""
-    ).toLowerCase();
-    if (originalStatus !== "open") {
-      setEditMode(false);
-      return;
-    }
-    // Update in backend
-    try {
-      // await updateGatePassStatus(selectedVoucher.id || selectedVoucher._id, editData.status);
-      // Update the selected voucher in the dialog
-      setSelectedVoucher({
-        ...selectedVoucher,
-        date: editData.date,
-        partyName: editData.partyName,
-        status: editData.status,
-        type: editData.status, // for compatibility
-      });
-      // Update the main table data as well
-      setVoucherData((prev: any[]) =>
-        prev.map((item) =>
-          item.id === selectedVoucher.id || item._id === selectedVoucher._id
-            ? {
-                ...item,
-                date: editData.date,
-                partyName: editData.partyName,
-                status: editData.status,
-                type: editData.status,
-              }
-            : item
-        )
-      );
-    } catch (error) {
-      alert("Failed to update status in database.");
-    }
-    setEditMode(false);
-    // Optionally, refresh data from backend
+  const handleEditRowChange = (rowId: string, field: string, value: any) => {
+    setEditRows((prev) =>
+      prev.map((row) => (row.id === rowId ? { ...row, [field]: value } : row))
+    );
   };
 
-  const handleCancelEdit = () => {
-    setEditMode(false);
+  const handleAddEditRow = () => {
+    setEditRows((prev) => [
+      ...prev,
+      {
+        id: Date.now().toString() + Math.random().toString(36).slice(2),
+        productName: "",
+        detail: "",
+        qty: "",
+        unit: "",
+      },
+    ]);
+  };
+
+  const handleDeleteEditRow = (rowId: string) => {
+    setEditRows((prev) =>
+      prev.length > 1 ? prev.filter((row) => row.id !== rowId) : prev
+    );
+  };
+
+  const handleSaveEdit = async () => {
+    try {
+      const id = selectedVoucher.id || selectedVoucher._id;
+      const gatepassData = {
+        date: editData.date,
+        party: editData.party,
+        orderNo: editData.orderNo,
+        type: editData.type,
+        rows: editRows,
+      };
+      await editGatePass(id, gatepassData);
+      setSnackbarMessage("Gate Pass updated successfully!");
+      setSnackbarSeverity("success");
+      setSnackbarOpen(true);
+      setEditMode(false);
+      setOpenDialog(false);
+      fetchGatePass(); // Refresh list
+    } catch (error) {
+      setSnackbarMessage("Failed to update gate pass.");
+      setSnackbarSeverity("error");
+      setSnackbarOpen(true);
+    }
   };
 
   const handlePrint = async () => {
@@ -190,6 +212,10 @@ const ViewGatePass: React.FC = () => {
     }
     return matchesParty && matchesDate;
   });
+
+  const handleCancelEdit = () => {
+    setEditMode(false);
+  };
 
   return (
     <Box
@@ -787,24 +813,167 @@ const ViewGatePass: React.FC = () => {
               />
               <TextField
                 label="Party Name"
-                value={editData.partyName || ""}
+                value={editData.party || ""}
+                onChange={(e) => handleEditFieldChange("party", e.target.value)}
+              />
+              <TextField
+                label="Order No."
+                value={editData.orderNo || ""}
                 onChange={(e) =>
-                  handleEditFieldChange("partyName", e.target.value)
+                  handleEditFieldChange("orderNo", e.target.value)
                 }
               />
               <FormControl>
-                <InputLabel>Status</InputLabel>
+                <InputLabel>Type</InputLabel>
                 <Select
-                  value={editData.status || ""}
-                  label="Status"
+                  value={editData.type || ""}
+                  label="Type"
                   onChange={(e) =>
-                    handleEditFieldChange("status", e.target.value)
+                    handleEditFieldChange("type", e.target.value)
                   }
                 >
                   <MenuItem value="Outgoing">Outgoing</MenuItem>
                   <MenuItem value="Incoming">Incoming</MenuItem>
                 </Select>
               </FormControl>
+              {/* Product Rows Table */}
+              <TableContainer
+                component={Paper}
+                sx={{
+                  borderRadius: 2,
+                  boxShadow: "none",
+                  border: "1px solid #e0e0e0",
+                  mt: 2,
+                }}
+              >
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: "#e3f2fd" }}>
+                      <TableCell sx={{ fontWeight: "bold" }}>
+                        Product Name
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: "bold" }}>Detail</TableCell>
+                      <TableCell sx={{ fontWeight: "bold" }}>QTY</TableCell>
+                      <TableCell sx={{ fontWeight: "bold" }}>Unit</TableCell>
+                      <TableCell
+                        sx={{
+                          fontWeight: "bold",
+                          width: 60,
+                          textAlign: "center",
+                        }}
+                      >
+                        Action
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {editRows.map((row) => (
+                      <TableRow key={row.id}>
+                        <TableCell>
+                          <TextField
+                            value={row.productName}
+                            onChange={(e) =>
+                              handleEditRowChange(
+                                row.id,
+                                "productName",
+                                e.target.value
+                              )
+                            }
+                            placeholder="Product name"
+                            size="small"
+                            fullWidth
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <TextField
+                            value={row.detail}
+                            onChange={(e) =>
+                              handleEditRowChange(
+                                row.id,
+                                "detail",
+                                e.target.value
+                              )
+                            }
+                            placeholder="Detail"
+                            size="small"
+                            fullWidth
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <TextField
+                            value={row.qty}
+                            onChange={(e) =>
+                              handleEditRowChange(
+                                row.id,
+                                "qty",
+                                e.target.value.replace(/[^0-9]/g, "")
+                              )
+                            }
+                            placeholder="0"
+                            size="small"
+                            fullWidth
+                            inputProps={{
+                              inputMode: "numeric",
+                              pattern: "[0-9]*",
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <TextField
+                            select
+                            value={row.unit}
+                            onChange={(e) =>
+                              handleEditRowChange(
+                                row.id,
+                                "unit",
+                                e.target.value
+                              )
+                            }
+                            size="small"
+                            fullWidth
+                          >
+                            <option value="" disabled>
+                              Select unit
+                            </option>
+                            {["Pieces", "Kg", "Liters", "Meters", "Boxes"].map(
+                              (unit) => (
+                                <option key={unit} value={unit}>
+                                  {unit}
+                                </option>
+                              )
+                            )}
+                          </TextField>
+                        </TableCell>
+                        <TableCell sx={{ textAlign: "center" }}>
+                          <Button
+                            color="error"
+                            onClick={() => handleDeleteEditRow(row.id)}
+                            disabled={editRows.length === 1}
+                          >
+                            <DeleteIcon />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  mb: 2,
+                  mt: 1,
+                }}
+              >
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={handleAddEditRow}
+                >
+                  Add Row
+                </Button>
+              </Box>
               <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
                 <Button
                   variant="contained"
@@ -830,6 +999,22 @@ const ViewGatePass: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar for messages */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <MuiAlert
+          onClose={() => setSnackbarOpen(false)}
+          severity={snackbarSeverity}
+          sx={{ width: "100%" }}
+        >
+          {snackbarMessage}
+        </MuiAlert>
+      </Snackbar>
     </Box>
   );
 };

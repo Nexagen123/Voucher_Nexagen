@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Paper,
@@ -20,13 +20,11 @@ import {
   Chip,
   useMediaQuery,
   useTheme,
-} from '@mui/material';
-import type { SelectChangeEvent } from '@mui/material';
-import {
-  Delete as VoidIcon,
-} from '@mui/icons-material';
+} from "@mui/material";
+import type { SelectChangeEvent } from "@mui/material";
+import { Delete as VoidIcon } from "@mui/icons-material";
 
-// Interface for Voided Purchase Voucher
+// Interface for Voided Purchase Voucher or Entry
 interface VoidedPurchaseVoucher {
   id: string;
   _id?: string;
@@ -34,8 +32,9 @@ interface VoidedPurchaseVoucher {
   dated: string;
   description: string;
   entries: number;
-  status: 'Voided';
+  status: "Voided" | "EntryVoided";
   voidedAt?: string;
+  entryDetails?: any; // For voided entries
 }
 
 interface VoidPurchaseVoucherProps {
@@ -49,13 +48,15 @@ const VoidPurchaseVoucher: React.FC<VoidPurchaseVoucherProps> = ({
 }) => {
   // Theme and responsive hooks
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
   // State for search and pagination
   const [searchTerm, setSearchTerm] = useState("");
   const [entriesPerPage, setEntriesPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
-  const [filteredVouchers, setFilteredVouchers] = useState<VoidedPurchaseVoucher[]>([]);
+  const [filteredVouchers, setFilteredVouchers] = useState<
+    VoidedPurchaseVoucher[]
+  >([]);
 
   // State for API data
   const [apiVouchers, setApiVouchers] = useState<VoidedPurchaseVoucher[]>([]);
@@ -64,56 +65,68 @@ const VoidPurchaseVoucher: React.FC<VoidPurchaseVoucherProps> = ({
   // Use API data if available, otherwise use props
   const displayVouchers = apiVouchers.length > 0 ? apiVouchers : vouchers;
 
-  // Fetch voided purchase vouchers from API
+  // Fetch voided purchase vouchers and entries from API
   const fetchVoidedVouchers = async () => {
     try {
       setApiLoading(true);
-
-      console.log('Fetching voided purchase vouchers...');
-
-      // For now, we'll get all vouchers and filter for voided ones
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:8000/api/vouchers/purchase', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+      // Fetch all purchase vouchers with entries
+      const response = await fetch(
+        "http://localhost:8000/vouchers/getvoucher?type=purchase&entries=true",
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            dbprefix: localStorage.getItem("dbprefix") || "fast",
+          },
         }
-      });
-
+      );
       if (!response.ok) {
-        console.log('Purchase vouchers endpoint not available');
         setApiVouchers([]);
         return;
       }
-
       const result = await response.json();
-      console.log('Purchase vouchers API response:', result);
-
-      if (result.success) {
-        const items = result.data?.vouchers || result.data?.items || result.data || [];
-        console.log('All purchase vouchers:', items);
-        // Filter for voided vouchers only
-        const voidedItems = items.filter((item: any) => {
-          console.log('Checking voucher:', item.id, 'Status:', item.status);
-          return item.status === 'Voided';
-        });
-        console.log('Voided purchase vouchers found:', voidedItems);
-
-        // Format for display
-        const formattedVouchers = voidedItems.map((item: any) => ({
-          id: item.id,
-          prvId: item.id,
-          dated: item.date || item.dated,
-          description: item.description || `${item.entries} entries`,
-          entries: item.entries,
-          status: item.status
+      // Always use result.items for vouchers with entries
+      const items = result.items || [];
+      // Voided vouchers
+      const voidedVouchers = items
+        .filter((item: any) => item.is_void === true)
+        .map((item: any) => ({
+          id: item._id,
+          prvId: item.voucher_id,
+          dated: item.date,
+          description:
+            item.metadata?.description || `${item.metadata?.supplier || ""}`,
+          entries: item.entries?.length || 0,
+          status: "Voided",
+          voidedAt: item.updated_at,
         }));
-
-        setApiVouchers(formattedVouchers);
-      }
+      // Voided entries (from non-voided vouchers)
+      const entryVoids: VoidedPurchaseVoucher[] = [];
+      items
+        .filter((item: any) => !item.is_void && item.entries)
+        .forEach((voucher: any) => {
+          voucher.entries.forEach((entryDoc: any) => {
+            if (Array.isArray(entryDoc.entries)) {
+              entryDoc.entries.forEach((entry: any) => {
+                if (entry.isVoid) {
+                  entryVoids.push({
+                    id: entry._id || entry.id,
+                    prvId: voucher.voucher_id,
+                    dated: entry.date || voucher.date,
+                    description:
+                      entry.description || entry.metadata?.itemName || "",
+                    entries: 1,
+                    status: "EntryVoided",
+                    voidedAt: entry.updatedAt || entry.updated_at,
+                    entryDetails: entry,
+                  });
+                }
+              });
+            }
+          });
+        });
+      setApiVouchers([...voidedVouchers, ...entryVoids]);
     } catch (error) {
-      console.error('Error fetching voided vouchers:', error);
       setApiVouchers([]);
     } finally {
       setApiLoading(false);
@@ -142,7 +155,10 @@ const VoidPurchaseVoucher: React.FC<VoidPurchaseVoucherProps> = ({
   }, [searchTerm, displayVouchers]);
 
   // Calculate pagination
-  const totalPages = Math.max(1, Math.ceil(filteredVouchers.length / Math.max(1, entriesPerPage)));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredVouchers.length / Math.max(1, entriesPerPage))
+  );
   const startIndex = (currentPage - 1) * entriesPerPage;
   const endIndex = startIndex + entriesPerPage;
   const currentVouchers = filteredVouchers.slice(startIndex, endIndex);
@@ -155,7 +171,10 @@ const VoidPurchaseVoucher: React.FC<VoidPurchaseVoucherProps> = ({
   }, [currentPage, totalPages]);
 
   // Handle page change
-  const handlePageChange = (_event: React.ChangeEvent<unknown>, page: number) => {
+  const handlePageChange = (
+    _event: React.ChangeEvent<unknown>,
+    page: number
+  ) => {
     setCurrentPage(page);
   };
 
@@ -166,25 +185,30 @@ const VoidPurchaseVoucher: React.FC<VoidPurchaseVoucherProps> = ({
   };
 
   return (
-    <Box sx={{
-      width: { xs: '100%', md: '100vw' },
-      position: { xs: 'static', md: 'relative' },
-      left: { xs: 'auto', md: '50%' },
-      right: { xs: 'auto', md: '50%' },
-      marginLeft: { xs: '0', md: 'calc(-50vw + 20vw)' },
-      marginRight: { xs: '0', md: '-50vw' },
-      py: { xs: 2, md: 4 },
-      px: { xs: 2, md: 6 },
-      minHeight: '100vh',
-      backgroundColor: '#FFFFFF'
-    }}>
+    <Box
+      sx={{
+        width: { xs: "100%", md: "100vw" },
+        position: { xs: "static", md: "relative" },
+        left: { xs: "auto", md: "50%" },
+        right: { xs: "auto", md: "50%" },
+        marginLeft: { xs: "0", md: "calc(-50vw + 20vw)" },
+        marginRight: { xs: "0", md: "-50vw" },
+        py: { xs: 2, md: 4 },
+        px: { xs: 2, md: 6 },
+        minHeight: "100vh",
+        backgroundColor: "#FFFFFF",
+      }}
+    >
       {/* Header */}
-      <Paper elevation={3} sx={{
-        p: { xs: 2, md: 3 },
-        mb: { xs: 2, md: 3 },
-        borderRadius: { xs: 1, md: 2 },
-        width: '100%'
-      }}>
+      <Paper
+        elevation={3}
+        sx={{
+          p: { xs: 2, md: 3 },
+          mb: { xs: 2, md: 3 },
+          borderRadius: { xs: 1, md: 2 },
+          width: "100%",
+        }}
+      >
         <Typography
           variant="h4"
           component="h1"
@@ -202,8 +226,8 @@ const VoidPurchaseVoucher: React.FC<VoidPurchaseVoucherProps> = ({
             alignItems: "center",
             justifyContent: "center",
             gap: { xs: 1, md: 2 },
-            fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2.125rem' },
-            flexDirection: { xs: 'column', sm: 'row' }
+            fontSize: { xs: "1.5rem", sm: "1.75rem", md: "2.125rem" },
+            flexDirection: { xs: "column", sm: "row" },
           }}
         >
           <VoidIcon fontSize="large" />
@@ -212,12 +236,15 @@ const VoidPurchaseVoucher: React.FC<VoidPurchaseVoucherProps> = ({
       </Paper>
 
       {/* Main Content */}
-      <Paper elevation={3} sx={{
-        p: { xs: 2, md: 3 },
-        mb: { xs: 2, md: 3 },
-        borderRadius: { xs: 1, md: 2 },
-        width: '100%'
-      }}>
+      <Paper
+        elevation={3}
+        sx={{
+          p: { xs: 2, md: 3 },
+          mb: { xs: 2, md: 3 },
+          borderRadius: { xs: 1, md: 2 },
+          width: "100%",
+        }}
+      >
         {/* Controls Row */}
         <Box
           sx={{
@@ -230,13 +257,15 @@ const VoidPurchaseVoucher: React.FC<VoidPurchaseVoucherProps> = ({
           }}
         >
           {/* Show entries dropdown */}
-          <Box sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-            width: { xs: "100%", sm: "auto" },
-            justifyContent: { xs: "center", sm: "flex-start" }
-          }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              width: { xs: "100%", sm: "auto" },
+              justifyContent: { xs: "center", sm: "flex-start" },
+            }}
+          >
             <Typography variant="body2">Show</Typography>
             <FormControl size="small" sx={{ minWidth: 60 }}>
               <Select
@@ -253,12 +282,14 @@ const VoidPurchaseVoucher: React.FC<VoidPurchaseVoucherProps> = ({
           </Box>
 
           {/* Search box */}
-          <Box sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-            width: { xs: "100%", sm: "auto" },
-          }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              width: { xs: "100%", sm: "auto" },
+            }}
+          >
             <Typography variant="body2">Search:</Typography>
             <TextField
               size="small"
@@ -273,24 +304,42 @@ const VoidPurchaseVoucher: React.FC<VoidPurchaseVoucherProps> = ({
         {/* Mobile Card View */}
         {isMobile ? (
           <Box sx={{ mb: 3 }}>
-            {(loading || apiLoading) ? (
+            {loading || apiLoading ? (
               <Box sx={{ textAlign: "center", py: 4 }}>
                 <CircularProgress size={24} sx={{ mr: 2 }} />
                 <Typography>Loading...</Typography>
               </Box>
             ) : currentVouchers.length === 0 ? (
-              <Paper sx={{ p: 4, textAlign: "center", backgroundColor: "#f5f5f5" }}>
+              <Paper
+                sx={{ p: 4, textAlign: "center", backgroundColor: "#f5f5f5" }}
+              >
                 <Typography color="textSecondary">
-                  {searchTerm ? 'No voided vouchers found matching your search' : 'No voided vouchers found'}
+                  {searchTerm
+                    ? "No voided vouchers found matching your search"
+                    : "No voided vouchers found"}
                 </Typography>
               </Paper>
             ) : (
               currentVouchers.map((voucher) => (
                 <Card key={voucher.id} sx={{ mb: 2, borderRadius: 2 }}>
                   <CardContent sx={{ p: 2 }}>
-                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        mb: 2,
+                      }}
+                    >
                       <Box>
-                        <Typography variant="h6" sx={{ color: "#f44336", fontWeight: "600", fontSize: "1rem" }}>
+                        <Typography
+                          variant="h6"
+                          sx={{
+                            color: "#f44336",
+                            fontWeight: "600",
+                            fontSize: "1rem",
+                          }}
+                        >
                           {voucher.prvId}
                         </Typography>
                         <Typography variant="body2" color="textSecondary">
@@ -298,8 +347,14 @@ const VoidPurchaseVoucher: React.FC<VoidPurchaseVoucherProps> = ({
                         </Typography>
                       </Box>
                       <Chip
-                        label="VOIDED"
-                        color="error"
+                        label={
+                          voucher.status === "Voided"
+                            ? "VOIDED VOUCHER"
+                            : "VOIDED ENTRY"
+                        }
+                        color={
+                          voucher.status === "Voided" ? "error" : "warning"
+                        }
                         size="small"
                       />
                     </Box>
@@ -316,7 +371,11 @@ const VoidPurchaseVoucher: React.FC<VoidPurchaseVoucherProps> = ({
           </Box>
         ) : (
           /* Desktop Table View */
-          <TableContainer component={Paper} variant="outlined" sx={{ mb: 3, borderRadius: 2 }}>
+          <TableContainer
+            component={Paper}
+            variant="outlined"
+            sx={{ mb: 3, borderRadius: 2 }}
+          >
             <Table>
               <TableHead>
                 <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
@@ -328,7 +387,7 @@ const VoidPurchaseVoucher: React.FC<VoidPurchaseVoucherProps> = ({
                 </TableRow>
               </TableHead>
               <TableBody>
-                {(loading || apiLoading) ? (
+                {loading || apiLoading ? (
                   <TableRow>
                     <TableCell colSpan={5} sx={{ textAlign: "center", py: 4 }}>
                       <CircularProgress size={24} sx={{ mr: 2 }} />
@@ -337,21 +396,44 @@ const VoidPurchaseVoucher: React.FC<VoidPurchaseVoucherProps> = ({
                   </TableRow>
                 ) : currentVouchers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} sx={{ textAlign: "center", py: 4, color: "#666" }}>
-                      {searchTerm ? 'No voided vouchers found matching your search' : 'No voided vouchers found'}
+                    <TableCell
+                      colSpan={5}
+                      sx={{ textAlign: "center", py: 4, color: "#666" }}
+                    >
+                      {searchTerm
+                        ? "No voided vouchers found matching your search"
+                        : "No voided vouchers found"}
                     </TableCell>
                   </TableRow>
                 ) : (
                   currentVouchers.map((voucher) => (
                     <TableRow key={voucher.id}>
-                      <TableCell sx={{ fontWeight: "600", color: "#f44336" }}>
+                      <TableCell
+                        sx={{
+                          fontWeight: "600",
+                          color:
+                            voucher.status === "Voided" ? "#f44336" : "#ff9800",
+                        }}
+                      >
                         {voucher.prvId}
                       </TableCell>
                       <TableCell>{voucher.dated}</TableCell>
                       <TableCell>{voucher.description}</TableCell>
-                      <TableCell sx={{ textAlign: "center" }}>{voucher.entries}</TableCell>
+                      <TableCell sx={{ textAlign: "center" }}>
+                        {voucher.entries}
+                      </TableCell>
                       <TableCell>
-                        <Chip label="VOIDED" color="error" size="small" />
+                        <Chip
+                          label={
+                            voucher.status === "Voided"
+                              ? "VOIDED VOUCHER"
+                              : "VOIDED ENTRY"
+                          }
+                          color={
+                            voucher.status === "Voided" ? "error" : "warning"
+                          }
+                          size="small"
+                        />
                       </TableCell>
                     </TableRow>
                   ))
@@ -363,9 +445,18 @@ const VoidPurchaseVoucher: React.FC<VoidPurchaseVoucherProps> = ({
 
         {/* Pagination */}
         {currentVouchers.length > 0 && (
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 2 }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mt: 2,
+            }}
+          >
             <Typography variant="body2" color="textSecondary">
-              Showing {startIndex + 1} to {Math.min(endIndex, filteredVouchers.length)} of {filteredVouchers.length} entries
+              Showing {startIndex + 1} to{" "}
+              {Math.min(endIndex, filteredVouchers.length)} of{" "}
+              {filteredVouchers.length} entries
             </Typography>
             <Pagination
               count={totalPages}

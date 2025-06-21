@@ -38,6 +38,8 @@ import { viewGatePass, editGatePass, voidGatePass } from "../../api/axios";
 import logo from "../../assets/logo.png";
 import MuiAlert from "@mui/material/Alert";
 import { useReactToPrint } from "react-to-print";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 // Add type declaration for File System Access API
 
@@ -62,6 +64,7 @@ const ViewGatePass: React.FC = () => {
   const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
   const printComponentRef = React.useRef<HTMLDivElement>(null);
   const [selectedPageSize, setSelectedPageSize] = useState("A4");
+  const pdfContentRef = React.useRef<HTMLDivElement>(null);
 
   const fetchGatePass = async () => {
     const response = await viewGatePass();
@@ -420,6 +423,29 @@ const ViewGatePass: React.FC = () => {
     </div>
   ));
 
+  const handleJsPdfPrint = async () => {
+    if (!pdfContentRef.current) return;
+    const input = pdfContentRef.current;
+    // Use html2canvas to render the content as an image
+    const canvas = await html2canvas(input, { scale: 2 });
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "pt",
+      format: "a4",
+    });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    // Calculate image dimensions to fit A4
+    const imgProps = canvas;
+    const imgWidth = pageWidth - 40;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    pdf.addImage(imgData, "PNG", 20, 20, imgWidth, imgHeight);
+    pdf.save(
+      `GatePass_IGP-${selectedVoucher?.igpId || selectedVoucher?.id || ""}.pdf`
+    );
+  };
+
   return (
     <Box
       sx={{
@@ -630,193 +656,348 @@ const ViewGatePass: React.FC = () => {
         <DialogContent dividers>
           {/* Editable or view content (as before) */}
           {selectedVoucher && !editMode && (
-            <Paper
-              elevation={4}
-              sx={{
-                p: 3,
-                borderRadius: 3,
-                minWidth: 700, // Increased width for view area
-                maxWidth: 1000,
-                mx: "auto",
-                boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
-              }}
-            >
-              {/* Header */}
-              <Box
+            <>
+              <Paper
+                elevation={4}
                 sx={{
-                  bgcolor: "#1976d2",
-                  color: "#fff",
-                  p: 2,
-                  borderRadius: 2,
-                  mb: 2,
-                  textAlign: "center",
-                  fontWeight: 700,
-                  fontSize: 22,
-                  letterSpacing: 1,
+                  p: 3,
+                  borderRadius: 3,
+                  minWidth: 700,
+                  maxWidth: 1000,
+                  mx: "auto",
+                  boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
                 }}
               >
-                Gate Pass Details
-              </Box>
-              {/* Main Info */}
-              <Box sx={{ mb: 2 }}>
-                <Typography sx={{ fontWeight: 600, mb: 0.5 }}>
-                  GP ID:{" "}
-                  <span style={{ fontWeight: 400 }}>
-                    {selectedVoucher && selectedVoucher.igpId !== undefined
-                      ? selectedVoucher.igpId
-                      : ""}
-                  </span>
-                </Typography>
-                <Typography sx={{ fontWeight: 600, mb: 0.5 }}>
-                  Date:{" "}
-                  <span style={{ fontWeight: 400 }}>
-                    {selectedVoucher.date}
-                  </span>
-                </Typography>
-                <Typography sx={{ fontWeight: 600, mb: 0.5 }}>
-                  Party Name:{" "}
-                  <span style={{ fontWeight: 400 }}>
-                    {selectedVoucher.party || selectedVoucher.partyName}
-                  </span>
-                </Typography>
-                <Typography sx={{ fontWeight: 600, mb: 0.5 }}>
-                  Status:{" "}
-                  <span style={{ fontWeight: 400 }}>
-                    {selectedVoucher.type || selectedVoucher.status}
-                  </span>
-                </Typography>
-                <Typography sx={{ fontWeight: 600, mb: 0.5 }}>
-                  Order No:{" "}
-                  <span style={{ fontWeight: 400 }}>
-                    {selectedVoucher.orderNo || "-"}
-                  </span>
-                </Typography>
-              </Box>
-              {/* Product Table */}
-              {Array.isArray(selectedVoucher.rows) &&
-                selectedVoucher.rows.length > 0 && (
-                  <Box sx={{ mt: 2 }}>
-                    <Typography
-                      variant="subtitle1"
-                      sx={{ mb: 1, fontWeight: 600, color: "#1976d2" }}
-                    >
-                      Products
+                {/* Header */}
+                <Box
+                  sx={{
+                    bgcolor: "#1976d2",
+                    color: "#fff",
+                    p: 2,
+                    borderRadius: 2,
+                    mb: 2,
+                    textAlign: "center",
+                    fontWeight: 700,
+                    fontSize: 22,
+                    letterSpacing: 1,
+                  }}
+                >
+                  Gate Pass Details
+                </Box>
+                {/* Main Info */}
+                <Box sx={{ mb: 2 }}>
+                  <Typography sx={{ fontWeight: 600, mb: 0.5 }}>
+                    GP ID:{" "}
+                    <span style={{ fontWeight: 400 }}>
+                      {selectedVoucher && selectedVoucher.igpId !== undefined
+                        ? selectedVoucher.igpId
+                        : ""}
+                    </span>
+                  </Typography>
+                  <Typography sx={{ fontWeight: 600, mb: 0.5 }}>
+                    Date:{" "}
+                    <span style={{ fontWeight: 400 }}>
+                      {selectedVoucher.date}
+                    </span>
+                  </Typography>
+                  <Typography sx={{ fontWeight: 600, mb: 0.5 }}>
+                    Party Name:{" "}
+                    <span style={{ fontWeight: 400 }}>
+                      {selectedVoucher.party || selectedVoucher.partyName}
+                    </span>
+                  </Typography>
+                  <Typography sx={{ fontWeight: 600, mb: 0.5 }}>
+                    Status:{" "}
+                    <span style={{ fontWeight: 400 }}>
+                      {selectedVoucher.type || selectedVoucher.status}
+                    </span>
+                  </Typography>
+                  <Typography sx={{ fontWeight: 600, mb: 0.5 }}>
+                    Order No:{" "}
+                    <span style={{ fontWeight: 400 }}>
+                      {selectedVoucher.orderNo || "-"}
+                    </span>
+                  </Typography>
+                </Box>
+                {/* Product Table */}
+                {Array.isArray(selectedVoucher.rows) &&
+                  selectedVoucher.rows.length > 0 && (
+                    <Box sx={{ mt: 2 }}>
+                      <Typography
+                        variant="subtitle1"
+                        sx={{ mb: 1, fontWeight: 600, color: "#1976d2" }}
+                      >
+                        Products
+                      </Typography>
+                      <TableContainer
+                        component={Paper}
+                        sx={{
+                          borderRadius: 2,
+                          boxShadow: "none",
+                          border: "1px solid #e0e0e0",
+                        }}
+                      >
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow sx={{ bgcolor: "#e3f2fd" }}>
+                              <TableCell sx={{ fontWeight: "bold" }}>
+                                Product Name
+                              </TableCell>
+                              <TableCell sx={{ fontWeight: "bold" }}>
+                                Quantity
+                              </TableCell>
+                              <TableCell sx={{ fontWeight: "bold" }}>
+                                Unit
+                              </TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {selectedVoucher.rows.map(
+                              (row: any, idx: number) => (
+                                <TableRow key={row.id || idx}>
+                                  <TableCell>{row.productName}</TableCell>
+                                  <TableCell>{row.qty}</TableCell>
+                                  <TableCell>{row.unit}</TableCell>
+                                </TableRow>
+                              )
+                            )}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    </Box>
+                  )}
+                {/* Action Buttons */}
+                <Box
+                  sx={{
+                    display: "flex",
+                    gap: 2,
+                    mt: 3,
+                    justifyContent: "center",
+                  }}
+                >
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    startIcon={<EditIcon />}
+                    onClick={handleEdit}
+                    sx={{ borderRadius: 2, minWidth: 100 }}
+                    className="no-print"
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    startIcon={<PrintIcon />}
+                    onClick={handleJsPdfPrint} // Use jsPDF for print
+                    sx={{ borderRadius: 2, minWidth: 100 }}
+                    className="no-print"
+                  >
+                    Print
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="error"
+                    startIcon={<DeleteIcon />}
+                    onClick={async () => {
+                      try {
+                        await voidGatePass(selectedVoucher._id);
+                        setSnackbarMessage(
+                          `Gate Pass #IGP-${selectedVoucher.igpId} voided successfully!`
+                        );
+                        setSnackbarSeverity("success");
+                        setSnackbarOpen(true);
+                        handleCloseDialog();
+                        setVoucherData((prev: any[]) =>
+                          prev.filter((v) => v._id !== selectedVoucher._id)
+                        );
+                      } catch (error) {
+                        setSnackbarMessage(
+                          `Failed to void Gate Pass #IGP-${selectedVoucher.igpId}.`
+                        );
+                        setSnackbarSeverity("error");
+                        setSnackbarOpen(true);
+                      }
+                    }}
+                    sx={{ borderRadius: 2, minWidth: 100 }}
+                    className="no-print"
+                  >
+                    Void
+                  </Button>
+                </Box>
+                {/* Signatures */}
+                <Box
+                  sx={{
+                    mt: 4,
+                    display: "flex",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Signature (Issuer)
                     </Typography>
-                    <TableContainer
-                      component={Paper}
+                    <Box
+                      sx={{ borderBottom: "1px solid #888", width: 120, mt: 2 }}
+                    />
+                  </Box>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Signature (Receiver)
+                    </Typography>
+                    <Box
+                      sx={{ borderBottom: "1px solid #888", width: 120, mt: 2 }}
+                    />
+                  </Box>
+                </Box>
+              </Paper>
+              {/* Hidden PDF content for jsPDF export */}
+              <div style={{ position: "absolute", left: -9999, top: 0 }}>
+                <div ref={pdfContentRef}>
+                  <Paper
+                    elevation={4}
+                    sx={{
+                      p: 3,
+                      borderRadius: 3,
+                      minWidth: 700,
+                      maxWidth: 1000,
+                      mx: "auto",
+                      boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
+                      color: "#222",
+                      fontFamily: "Roboto, Arial",
+                    }}
+                  >
+                    <Box
                       sx={{
+                        bgcolor: "#1976d2",
+                        color: "#fff",
+                        p: 2,
                         borderRadius: 2,
-                        boxShadow: "none",
-                        border: "1px solid #e0e0e0",
+                        mb: 2,
+                        textAlign: "center",
+                        fontWeight: 700,
+                        fontSize: 22,
+                        letterSpacing: 1,
                       }}
                     >
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow sx={{ bgcolor: "#e3f2fd" }}>
-                            <TableCell sx={{ fontWeight: "bold" }}>
-                              Product Name
-                            </TableCell>
-                            <TableCell sx={{ fontWeight: "bold" }}>
-                              Quantity
-                            </TableCell>
-                            <TableCell sx={{ fontWeight: "bold" }}>
-                              Unit
-                            </TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {selectedVoucher.rows.map((row: any, idx: number) => (
-                            <TableRow key={row.id || idx}>
-                              <TableCell>{row.productName}</TableCell>
-                              <TableCell>{row.qty}</TableCell>
-                              <TableCell>{row.unit}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                  </Box>
-                )}
-              {/* Action Buttons */}
-              <Box
-                sx={{
-                  display: "flex",
-                  gap: 2,
-                  mt: 3,
-                  justifyContent: "center",
-                }}
-              >
-                <Button
-                  variant="contained"
-                  color="primary"
-                  startIcon={<EditIcon />}
-                  onClick={handleEdit}
-                  sx={{ borderRadius: 2, minWidth: 100 }}
-                  className="no-print"
-                >
-                  Edit
-                </Button>
-                <Button
-                  variant="contained"
-                  color="secondary"
-                  startIcon={<PrintIcon />}
-                  onClick={handleOpenPrintPreview} // Always open the print preview dialog
-                  sx={{ borderRadius: 2, minWidth: 100 }}
-                  className="no-print"
-                >
-                  Print
-                </Button>
-                <Button
-                  variant="contained"
-                  color="error"
-                  startIcon={<DeleteIcon />}
-                  onClick={async () => {
-                    try {
-                      await voidGatePass(selectedVoucher._id);
-                      setSnackbarMessage("Gate Pass voided successfully!");
-                      setSnackbarSeverity("success");
-                      setSnackbarOpen(true);
-                      handleCloseDialog();
-                      // Remove the voided gate pass from local state immediately
-                      setVoucherData((prev: any[]) =>
-                        prev.filter((v) => v._id !== selectedVoucher._id)
-                      );
-                      // Optionally, you can still call fetchGatePass() if you want to refresh from server
-                      // fetchGatePass();
-                    } catch (error) {
-                      setSnackbarMessage("Failed to void Gate Pass.");
-                      setSnackbarSeverity("error");
-                      setSnackbarOpen(true);
-                    }
-                  }}
-                  sx={{ borderRadius: 2, minWidth: 100 }}
-                  className="no-print"
-                >
-                  Void
-                </Button>
-              </Box>
-              {/* Signatures */}
-              <Box
-                sx={{ mt: 4, display: "flex", justifyContent: "space-between" }}
-              >
-                <Box>
-                  <Typography variant="body2" color="text.secondary">
-                    Signature (Issuer)
-                  </Typography>
-                  <Box
-                    sx={{ borderBottom: "1px solid #888", width: 120, mt: 2 }}
-                  />
-                </Box>
-                <Box>
-                  <Typography variant="body2" color="text.secondary">
-                    Signature (Receiver)
-                  </Typography>
-                  <Box
-                    sx={{ borderBottom: "1px solid #888", width: 120, mt: 2 }}
-                  />
-                </Box>
-              </Box>
-            </Paper>
+                      Gate Pass Details
+                    </Box>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography sx={{ fontWeight: 600, mb: 0.5 }}>
+                        GP ID:{" "}
+                        <span style={{ fontWeight: 400 }}>
+                          {selectedVoucher.igpId !== undefined
+                            ? selectedVoucher.igpId
+                            : ""}
+                        </span>
+                      </Typography>
+                      <Typography sx={{ fontWeight: 600, mb: 0.5 }}>
+                        Date:{" "}
+                        <span style={{ fontWeight: 400 }}>
+                          {selectedVoucher.date}
+                        </span>
+                      </Typography>
+                      <Typography sx={{ fontWeight: 600, mb: 0.5 }}>
+                        Party Name:{" "}
+                        <span style={{ fontWeight: 400 }}>
+                          {selectedVoucher.party || selectedVoucher.partyName}
+                        </span>
+                      </Typography>
+                      <Typography sx={{ fontWeight: 600, mb: 0.5 }}>
+                        Status:{" "}
+                        <span style={{ fontWeight: 400 }}>
+                          {selectedVoucher.type || selectedVoucher.status}
+                        </span>
+                      </Typography>
+                      <Typography sx={{ fontWeight: 600, mb: 0.5 }}>
+                        Order No:{" "}
+                        <span style={{ fontWeight: 400 }}>
+                          {selectedVoucher.orderNo || "-"}
+                        </span>
+                      </Typography>
+                    </Box>
+                    {Array.isArray(selectedVoucher.rows) &&
+                      selectedVoucher.rows.length > 0 && (
+                        <Box sx={{ mt: 2 }}>
+                          <Typography
+                            variant="subtitle1"
+                            sx={{ mb: 1, fontWeight: 600, color: "#1976d2" }}
+                          >
+                            Products
+                          </Typography>
+                          <TableContainer
+                            component={Paper}
+                            sx={{
+                              borderRadius: 2,
+                              boxShadow: "none",
+                              border: "1px solid #e0e0e0",
+                            }}
+                          >
+                            <Table size="small">
+                              <TableHead>
+                                <TableRow sx={{ bgcolor: "#e3f2fd" }}>
+                                  <TableCell sx={{ fontWeight: "bold" }}>
+                                    Product Name
+                                  </TableCell>
+                                  <TableCell sx={{ fontWeight: "bold" }}>
+                                    Quantity
+                                  </TableCell>
+                                  <TableCell sx={{ fontWeight: "bold" }}>
+                                    Unit
+                                  </TableCell>
+                                </TableRow>
+                              </TableHead>
+                              <TableBody>
+                                {selectedVoucher.rows.map(
+                                  (row: any, idx: number) => (
+                                    <TableRow key={row.id || idx}>
+                                      <TableCell>{row.productName}</TableCell>
+                                      <TableCell>{row.qty}</TableCell>
+                                      <TableCell>{row.unit}</TableCell>
+                                    </TableRow>
+                                  )
+                                )}
+                              </TableBody>
+                            </Table>
+                          </TableContainer>
+                        </Box>
+                      )}
+                    <Box
+                      sx={{
+                        mt: 4,
+                        display: "flex",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">
+                          Signature (Issuer)
+                        </Typography>
+                        <Box
+                          sx={{
+                            borderBottom: "1px solid #888",
+                            width: 120,
+                            mt: 2,
+                          }}
+                        />
+                      </Box>
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">
+                          Signature (Receiver)
+                        </Typography>
+                        <Box
+                          sx={{
+                            borderBottom: "1px solid #888",
+                            width: 120,
+                            mt: 2,
+                          }}
+                        />
+                      </Box>
+                    </Box>
+                  </Paper>
+                </div>
+              </div>
+            </>
           )}
           {selectedVoucher && editMode && (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>

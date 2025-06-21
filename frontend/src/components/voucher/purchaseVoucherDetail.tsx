@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Paper,
@@ -22,13 +22,13 @@ import {
   TableHead,
   TableRow,
   TextField,
-} from '@mui/material';
+} from "@mui/material";
 import {
   ArrowBack as ArrowBackIcon,
   Edit as EditIcon,
   Delete as VoidIcon,
   Receipt as ReceiptIcon,
-} from '@mui/icons-material';
+} from "@mui/icons-material";
 
 // Interface for Purchase Voucher Transaction Item
 interface PurchaseVoucherItem {
@@ -88,13 +88,23 @@ const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
 }) => {
   // State
   const [voidDialogOpen, setVoidDialogOpen] = useState(false);
+  const [voidEntryDialogOpen, setVoidEntryDialogOpen] = useState<{
+    open: boolean;
+    entry: any | null;
+  }>({ open: false, entry: null });
   const [loading, setLoading] = useState(false);
+  const [entryLoading, setEntryLoading] = useState<string | null>(null); // entryId being voided
   const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">(
+    "success"
+  );
 
   // Show snackbar
-  const showSnackbar = (message: string, severity: 'success' | 'error' = 'success') => {
+  const showSnackbar = (
+    message: string,
+    severity: "success" | "error" = "success"
+  ) => {
     setSnackbarMessage(message);
     setSnackbarSeverity(severity);
     setSnackbarOpen(true);
@@ -106,41 +116,80 @@ const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
 
     try {
       setLoading(true);
-      
+
       // Call API to void the voucher using the correct endpoint
-      const response = await fetch(`http://localhost:8000/vouchers/${voucher._id}/void`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'dbprefix': localStorage.getItem('dbprefix') || 'fast',
-        },
-        body: JSON.stringify({ is_void: true })
-      });
+      const response = await fetch(
+        `http://localhost:8000/vouchers/${voucher._id}/void`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            dbprefix: localStorage.getItem("dbprefix") || "fast",
+          },
+          body: JSON.stringify({ is_void: true }),
+        }
+      );
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const result = await response.json();
-      
+
       if (result.success) {
-        showSnackbar('Purchase voucher voided successfully!', 'success');
+        showSnackbar("Purchase voucher voided successfully!", "success");
         setVoidDialogOpen(false);
         onVoid(voucher);
       } else {
-        throw new Error(result.message || 'Failed to void voucher');
+        throw new Error(result.message || "Failed to void voucher");
       }
     } catch (error) {
-      console.error('Error voiding voucher:', error);
-      showSnackbar('Error voiding voucher', 'error');
+      console.error("Error voiding voucher:", error);
+      showSnackbar("Error voiding voucher", "error");
     } finally {
       setLoading(false);
     }
   };
 
+  // Handle voiding a single entry
+  const handleVoidEntry = async (entry: any) => {
+    if (!voucher || !entry) return;
+    try {
+      setEntryLoading(entry._id || entry.id || "");
+      const response = await fetch(
+        `http://localhost:8000/vouchers/${voucher._id}/entries/${
+          entry._id || entry.id
+        }/void`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            dbprefix: localStorage.getItem("dbprefix") || "fast",
+          },
+          body: JSON.stringify({ is_void: true }),
+        }
+      );
+      if (!response.ok)
+        throw new Error(`HTTP error! status: ${response.status}`);
+      const result = await response.json();
+      if (result.success) {
+        showSnackbar("Entry voided successfully!", "success");
+        setVoidEntryDialogOpen({ open: false, entry: null });
+        // Optionally, refresh voucher data here
+      } else {
+        throw new Error(result.message || "Failed to void entry");
+      }
+    } catch (error) {
+      console.error("Error voiding entry:", error);
+      showSnackbar("Error voiding entry", "error");
+    } finally {
+      setEntryLoading(null);
+    }
+  };
+
   if (!voucher) {
     return (
-      <Box sx={{ p: 3, textAlign: 'center' }}>
+      <Box sx={{ p: 3, textAlign: "center" }}>
         <Typography>No voucher selected</Typography>
         <Button onClick={onBack} sx={{ mt: 2 }}>
           Go Back
@@ -150,60 +199,69 @@ const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
   }
 
   return (
-    <Box sx={{
-      width: { xs: '100%', md: '100vw' },
-      position: { xs: 'static', md: 'relative' },
-      left: { xs: 'auto', md: '50%' },
-      right: { xs: 'auto', md: '50%' },
-      marginLeft: { xs: '0', md: 'calc(-50vw + 20vw)' },
-      marginRight: { xs: '0', md: '-50vw' },
-      py: { xs: 2, md: 4 },
-      px: { xs: 2, md: 6 },
-      minHeight: '100vh',
-      backgroundColor: 'white'
-    }}>
+    <Box
+      sx={{
+        width: { xs: "100%", md: "100vw" },
+        position: { xs: "static", md: "relative" },
+        left: { xs: "auto", md: "50%" },
+        right: { xs: "auto", md: "50%" },
+        marginLeft: { xs: "0", md: "calc(-50vw + 20vw)" },
+        marginRight: { xs: "0", md: "-50vw" },
+        py: { xs: 2, md: 4 },
+        px: { xs: 2, md: 6 },
+        minHeight: "100vh",
+        backgroundColor: "white",
+      }}
+    >
       {/* Header */}
-      <Paper elevation={3} sx={{
-        p: { xs: 2, md: 3 },
-        mb: { xs: 2, md: 3 },
-        borderRadius: { xs: 1, md: 2 },
-        width: '100%'
-      }}>
-        <Box sx={{
-          backgroundColor: "white",
-          color: "black",
-          py: { xs: 1.5, md: 2 },
-          px: { xs: 2, md: 3 },
-          borderRadius: 1,
+      <Paper
+        elevation={3}
+        sx={{
+          p: { xs: 2, md: 3 },
           mb: { xs: 2, md: 3 },
-          display: 'flex',
-          alignItems: 'center',
-          gap: 2,
-          flexDirection: { xs: 'column', sm: 'row' }
-        }}>
+          borderRadius: { xs: 1, md: 2 },
+          width: "100%",
+        }}
+      >
+        <Box
+          sx={{
+            backgroundColor: "white",
+            color: "black",
+            py: { xs: 1.5, md: 2 },
+            px: { xs: 2, md: 3 },
+            borderRadius: 1,
+            mb: { xs: 2, md: 3 },
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
+            flexDirection: { xs: "column", sm: "row" },
+          }}
+        >
           <Button
             startIcon={<ArrowBackIcon />}
             onClick={onBack}
-            sx={{ 
-              alignSelf: { xs: 'flex-start', sm: 'center' },
-              mb: { xs: 1, sm: 0 }
+            sx={{
+              alignSelf: { xs: "flex-start", sm: "center" },
+              mb: { xs: 1, sm: 0 },
             }}
           >
             Back to List
           </Button>
-          <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: 2,
-            flex: 1,
-            justifyContent: { xs: 'center', sm: 'center' }
-          }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 2,
+              flex: 1,
+              justifyContent: { xs: "center", sm: "center" },
+            }}
+          >
             <ReceiptIcon fontSize="large" />
             <Typography
               variant="h4"
               component="h1"
               fontWeight="bold"
-              sx={{ fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2.125rem' } }}
+              sx={{ fontSize: { xs: "1.5rem", sm: "1.75rem", md: "2.125rem" } }}
             >
               Purchase Voucher Details
             </Typography>
@@ -212,13 +270,19 @@ const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
 
         {/* Voucher Info */}
         <Box sx={{ mb: 3 }}>
-          <Card sx={{ backgroundColor: '#f8f9fa', mb: 2 }}>
+          <Card sx={{ backgroundColor: "#f8f9fa", mb: 2 }}>
             <CardContent>
-              <Box sx={{ 
-                display: 'grid', 
-                gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' },
-                gap: 2 
-              }}>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    sm: "1fr 1fr",
+                    md: "1fr 1fr 1fr",
+                  },
+                  gap: 2,
+                }}
+              >
                 <Box>
                   <Typography variant="subtitle2" color="textSecondary">
                     Voucher ID
@@ -240,7 +304,8 @@ const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
                     Type
                   </Typography>
                   <Typography variant="body1">
-                    {voucher.type.charAt(0).toUpperCase() + voucher.type.slice(1)}
+                    {voucher.type.charAt(0).toUpperCase() +
+                      voucher.type.slice(1)}
                   </Typography>
                 </Box>
                 <Box>
@@ -248,25 +313,37 @@ const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
                     Status
                   </Typography>
                   <Chip
-                    label={voucher.is_void ? 'Voided' : (voucher.is_posted ? 'Posted' : 'Draft')}
-                    color={voucher.is_void ? 'error' : (voucher.is_posted ? 'success' : 'warning')}
+                    label={
+                      voucher.is_void
+                        ? "Voided"
+                        : voucher.is_posted
+                        ? "Posted"
+                        : "Draft"
+                    }
+                    color={
+                      voucher.is_void
+                        ? "error"
+                        : voucher.is_posted
+                        ? "success"
+                        : "warning"
+                    }
                     size="small"
                   />
                 </Box>
-                <Box sx={{ gridColumn: { xs: '1', sm: '1 / -1' } }}>
+                <Box sx={{ gridColumn: { xs: "1", sm: "1 / -1" } }}>
                   <Typography variant="subtitle2" color="textSecondary">
                     Supplier
                   </Typography>
                   <Typography variant="body1">
-                    {voucher.metadata?.supplier || 'N/A'}
+                    {voucher.metadata?.supplier || "N/A"}
                   </Typography>
                 </Box>
-                <Box sx={{ gridColumn: { xs: '1', sm: '1 / -1' } }}>
+                <Box sx={{ gridColumn: { xs: "1", sm: "1 / -1" } }}>
                   <Typography variant="subtitle2" color="textSecondary">
                     Total Amount
                   </Typography>
                   <Typography variant="body1" fontWeight="bold">
-                    ${voucher.metadata?.totalAmount?.toFixed(2) || '0.00'}
+                    ${voucher.metadata?.totalAmount?.toFixed(2) || "0.00"}
                   </Typography>
                 </Box>
               </Box>
@@ -281,19 +358,19 @@ const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
           </Typography>
 
           {/* Date Display */}
-          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ mb: 2, display: "flex", alignItems: "center", gap: 2 }}>
             <Typography variant="body2" color="textSecondary">
               Date: Month/Day/Year
             </Typography>
             <TextField
               size="small"
-              value={new Date(voucher.date).toLocaleDateString('en-US')}
+              value={new Date(voucher.date).toLocaleDateString("en-US")}
               disabled
               sx={{
-                '& .MuiInputBase-input': {
-                  backgroundColor: '#f5f5f5',
-                  fontWeight: 'bold'
-                }
+                "& .MuiInputBase-input": {
+                  backgroundColor: "#f5f5f5",
+                  fontWeight: "bold",
+                },
               }}
             />
           </Box>
@@ -301,22 +378,40 @@ const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
           <TableContainer component={Paper} variant="outlined">
             <Table sx={{ minWidth: 650 }}>
               <TableHead>
-                <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
-                  <TableCell sx={{ fontWeight: 'bold', minWidth: 120 }}>Account</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', minWidth: 150 }}>Item</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', minWidth: 80 }}>QTY</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', minWidth: 120 }}>Category</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', minWidth: 100 }}>Product Code</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', minWidth: 80 }}>Rate</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', minWidth: 80 }}>GST %</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', minWidth: 100 }}>Total</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', minWidth: 80 }}>Action</TableCell>
+                <TableRow sx={{ backgroundColor: "#f8f9fa" }}>
+                  <TableCell sx={{ fontWeight: "bold", minWidth: 120 }}>
+                    Account
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", minWidth: 150 }}>
+                    Item
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", minWidth: 80 }}>
+                    QTY
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", minWidth: 120 }}>
+                    Category
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", minWidth: 100 }}>
+                    Product Code
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", minWidth: 80 }}>
+                    Rate
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", minWidth: 80 }}>
+                    GST %
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", minWidth: 100 }}>
+                    Total
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", minWidth: 80 }}>
+                    Action
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {(() => {
-                  console.log('Voucher entries:', voucher.entries);
-                  console.log('Full voucher data:', voucher);
+                  console.log("Voucher entries:", voucher.entries);
+                  console.log("Full voucher data:", voucher);
 
                   // Flatten all entries from all entry documents
                   const allEntries: any[] = [];
@@ -327,90 +422,124 @@ const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
                         entryDoc.entries.forEach((entry: any) => {
                           allEntries.push({
                             ...entry,
-                            accountId: entryDoc.accountId // Add account ID from parent document
+                            accountId: entryDoc.accountId, // Add account ID from parent document
                           });
                         });
                       }
                     });
                   }
 
-                  console.log('Flattened entries:', allEntries);
+                  console.log("Flattened entries:", allEntries);
 
                   if (allEntries.length > 0) {
-                    return allEntries.map((entry: any, index: number) => (
-                      <TableRow key={index} sx={{ '&:nth-of-type(odd)': { backgroundColor: '#fafafa' } }}>
-                        <TableCell sx={{ color: '#1976d2', fontWeight: 500 }}>
-                          {voucher.metadata?.supplier || 'Master Elastic Factory'}
-                        </TableCell>
-                        <TableCell>
-                          {entry.metadata?.itemName ||
-                           entry.description?.split('Purchase of ')[1]?.split(' - ')[0] ||
-                           'N/A'}
-                        </TableCell>
-                        <TableCell>
-                          {entry.metadata?.quantity ||
-                           entry.description?.match(/(\d+(?:\.\d+)?)\s+\w+\s+@/)?.[1] ||
-                           '0'}
-                        </TableCell>
-                        <TableCell>
-                          {entry.metadata?.category || 'N/A'}
-                        </TableCell>
-                        <TableCell>
-                          {entry.metadata?.productCode || Math.floor(Math.random() * 900) + 100}
-                        </TableCell>
-                        <TableCell>
-                          {entry.metadata?.rate ||
-                           entry.description?.match(/@\s+(\d+(?:\.\d+)?)/)?.[1] ||
-                           (entry.debit ? entry.debit.toString() : '0.00')}
-                        </TableCell>
-                        <TableCell>
-                          {entry.metadata?.gst || '0'}
-                        </TableCell>
-                        <TableCell sx={{ fontWeight: 'bold' }}>
-                          {entry.metadata?.total?.toFixed(2) ||
-                           (entry.debit ? entry.debit.toFixed(2) : '0.00')}
-                        </TableCell>
-                        <TableCell>
-                          <Box sx={{ display: 'flex', gap: 1, flexDirection: { xs: 'column', sm: 'row' } }}>
-                            <Button
-                              variant="contained"
-                              size="small"
+                    return allEntries.map((entry: any, index: number) => {
+                      const isEntryVoided = entry.is_void;
+                      return (
+                        <TableRow
+                          key={index}
+                          sx={{
+                            "&:nth-of-type(odd)": {
+                              backgroundColor: "#fafafa",
+                            },
+                            opacity: isEntryVoided ? 0.5 : 1,
+                          }}
+                        >
+                          <TableCell sx={{ color: "#1976d2", fontWeight: 500 }}>
+                            {voucher.metadata?.supplier ||
+                              "Master Elastic Factory"}
+                          </TableCell>
+                          <TableCell>
+                            {entry.metadata?.itemName ||
+                              entry.description
+                                ?.split("Purchase of ")[1]
+                                ?.split(" - ")[0] ||
+                              "N/A"}
+                          </TableCell>
+                          <TableCell>
+                            {entry.metadata?.quantity ||
+                              entry.description?.match(
+                                /(\d+(?:\.\d+)?)\s+\w+\s+@/
+                              )?.[1] ||
+                              "0"}
+                          </TableCell>
+                          <TableCell>
+                            {entry.metadata?.category || "N/A"}
+                          </TableCell>
+                          <TableCell>
+                            {entry.metadata?.productCode ||
+                              Math.floor(Math.random() * 900) + 100}
+                          </TableCell>
+                          <TableCell>
+                            {entry.metadata?.rate ||
+                              entry.description?.match(
+                                /@\s+(\d+(?:\.\d+)?)/
+                              )?.[1] ||
+                              (entry.debit ? entry.debit.toString() : "0.00")}
+                          </TableCell>
+                          <TableCell>{entry.metadata?.gst || "0"}</TableCell>
+                          <TableCell sx={{ fontWeight: "bold" }}>
+                            {entry.metadata?.total?.toFixed(2) ||
+                              (entry.debit ? entry.debit.toFixed(2) : "0.00")}
+                          </TableCell>
+                          <TableCell>
+                            <Box
                               sx={{
-                                backgroundColor: '#f44336',
-                                color: 'white',
-                                fontSize: '0.75rem',
-                                minWidth: '60px',
-                                '&:hover': {
-                                  backgroundColor: '#d32f2f'
-                                }
+                                display: "flex",
+                                gap: 1,
+                                flexDirection: { xs: "column", sm: "row" },
                               }}
                             >
-                              Return
-                            </Button>
-                            <Button
-                              variant="outlined"
-                              size="small"
-                              sx={{
-                                borderColor: '#ff9800',
-                                color: '#ff9800',
-                                fontSize: '0.75rem',
-                                minWidth: '50px',
-                                '&:hover': {
-                                  borderColor: '#f57c00',
-                                  backgroundColor: '#fff3e0'
+                              <Button
+                                variant="contained"
+                                size="small"
+                                sx={{
+                                  backgroundColor: "#f44336",
+                                  color: "white",
+                                  fontSize: "0.75rem",
+                                  minWidth: "60px",
+                                  "&:hover": {
+                                    backgroundColor: "#d32f2f",
+                                  },
+                                }}
+                                disabled={isEntryVoided}
+                                onClick={() =>
+                                  setVoidEntryDialogOpen({ open: true, entry })
                                 }
-                              }}
-                            >
-                              Void
-                            </Button>
-                          </Box>
-                        </TableCell>
-                      </TableRow>
-                    ));
+                              >
+                                {isEntryVoided ? "VOIDED" : "RETURN"}
+                              </Button>
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                sx={{
+                                  borderColor: "#ff9800",
+                                  color: "#ff9800",
+                                  fontSize: "0.75rem",
+                                  minWidth: "50px",
+                                  "&:hover": {
+                                    borderColor: "#f57c00",
+                                    backgroundColor: "#fff3e0",
+                                  },
+                                }}
+                                disabled={isEntryVoided}
+                                onClick={() =>
+                                  setVoidEntryDialogOpen({ open: true, entry })
+                                }
+                              >
+                                {isEntryVoided ? "VOIDED" : "VOID"}
+                              </Button>
+                            </Box>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    });
                   } else {
                     return (
                       <TableRow>
-                        <TableCell colSpan={9} sx={{ textAlign: 'center', py: 3 }}>
+                        <TableCell
+                          colSpan={9}
+                          sx={{ textAlign: "center", py: 3 }}
+                        >
                           <Typography color="textSecondary">
                             No purchase details available
                           </Typography>
@@ -427,12 +556,14 @@ const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
         <Divider sx={{ my: 3 }} />
 
         {/* Action Buttons */}
-        <Box sx={{ 
-          display: 'flex', 
-          gap: 2, 
-          justifyContent: { xs: 'center', md: 'flex-end' },
-          flexDirection: { xs: 'column', sm: 'row' }
-        }}>
+        <Box
+          sx={{
+            display: "flex",
+            gap: 2,
+            justifyContent: { xs: "center", md: "flex-end" },
+            flexDirection: { xs: "column", sm: "row" },
+          }}
+        >
           <Button
             variant="contained"
             startIcon={<EditIcon />}
@@ -441,17 +572,17 @@ const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
             sx={{
               px: { xs: 3, md: 4 },
               py: { xs: 1.5, md: 1 },
-              fontSize: { xs: '1rem', md: '1.1rem' },
-              minWidth: { xs: '200px', md: 'auto' },
-              backgroundColor: '#4caf50',
-              color: '#000',
-              '&:hover': {
-                backgroundColor: '#388e3c',
-                color: '#fff'
+              fontSize: { xs: "1rem", md: "1.1rem" },
+              minWidth: { xs: "200px", md: "auto" },
+              backgroundColor: "#4caf50",
+              color: "#000",
+              "&:hover": {
+                backgroundColor: "#388e3c",
+                color: "#fff",
               },
-              '&:disabled': {
-                backgroundColor: '#bdbdbd',
-                color: '#fff'
+              "&:disabled": {
+                backgroundColor: "#bdbdbd",
+                color: "#fff",
               },
             }}
           >
@@ -463,14 +594,14 @@ const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
             sx={{
               px: { xs: 3, md: 4 },
               py: { xs: 1.5, md: 1 },
-              fontSize: { xs: '1rem', md: '1.1rem' },
-              minWidth: { xs: '200px', md: 'auto' },
-              backgroundColor: '#1976d2',
-              color: '#000',
-              '&:hover': {
-                backgroundColor: '#115293',
-                color: '#fff'
-              }
+              fontSize: { xs: "1rem", md: "1.1rem" },
+              minWidth: { xs: "200px", md: "auto" },
+              backgroundColor: "#1976d2",
+              color: "#000",
+              "&:hover": {
+                backgroundColor: "#115293",
+                color: "#fff",
+              },
             }}
           >
             Return Voucher
@@ -483,24 +614,24 @@ const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
             sx={{
               px: { xs: 3, md: 4 },
               py: { xs: 1.5, md: 1 },
-              fontSize: { xs: '1rem', md: '1.1rem' },
-              minWidth: { xs: '200px', md: 'auto' },
-              backgroundColor: '#f44336',
-              '&:hover': {
-                backgroundColor: '#d32f2f',
+              fontSize: { xs: "1rem", md: "1.1rem" },
+              minWidth: { xs: "200px", md: "auto" },
+              backgroundColor: "#f44336",
+              "&:hover": {
+                backgroundColor: "#d32f2f",
               },
-              '&:disabled': {
-                backgroundColor: '#cccccc',
+              "&:disabled": {
+                backgroundColor: "#cccccc",
               },
             }}
           >
             {loading ? (
               <>
-                <CircularProgress size={20} sx={{ mr: 1, color: 'white' }} />
+                <CircularProgress size={20} sx={{ mr: 1, color: "white" }} />
                 Voiding...
               </>
             ) : (
-              'Void Voucher'
+              "Void Voucher"
             )}
           </Button>
         </Box>
@@ -511,24 +642,84 @@ const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
         <DialogTitle>Confirm Void Voucher</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to void this purchase voucher? This action cannot be undone.
+            Are you sure you want to void this purchase voucher? This action
+            cannot be undone.
           </Typography>
-          <Box sx={{ mt: 2, p: 2, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
-            <Typography variant="subtitle2">Voucher: {voucher.voucher_id}</Typography>
-            <Typography variant="body2">Date: {new Date(voucher.date).toLocaleDateString()}</Typography>
-            <Typography variant="body2">Supplier: {voucher.metadata?.supplier || 'N/A'}</Typography>
-            <Typography variant="body2">Amount: ${voucher.metadata?.totalAmount?.toFixed(2) || '0.00'}</Typography>
+          <Box
+            sx={{ mt: 2, p: 2, backgroundColor: "#f5f5f5", borderRadius: 1 }}
+          >
+            <Typography variant="subtitle2">
+              Voucher: {voucher.voucher_id}
+            </Typography>
+            <Typography variant="body2">
+              Date: {new Date(voucher.date).toLocaleDateString()}
+            </Typography>
+            <Typography variant="body2">
+              Supplier: {voucher.metadata?.supplier || "N/A"}
+            </Typography>
+            <Typography variant="body2">
+              Amount: ${voucher.metadata?.totalAmount?.toFixed(2) || "0.00"}
+            </Typography>
           </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setVoidDialogOpen(false)}>Cancel</Button>
-          <Button 
-            onClick={handleVoidConfirm} 
-            color="error" 
+          <Button
+            onClick={handleVoidConfirm}
+            color="error"
             variant="contained"
             disabled={loading}
           >
-            {loading ? 'Voiding...' : 'Void Voucher'}
+            {loading ? "Voiding..." : "Void Voucher"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Void Entry Confirmation Dialog */}
+      <Dialog
+        open={voidEntryDialogOpen.open}
+        onClose={() => setVoidEntryDialogOpen({ open: false, entry: null })}
+      >
+        <DialogTitle>Confirm Void Entry</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to void this entry? This action cannot be
+            undone.
+          </Typography>
+          <Box
+            sx={{ mt: 2, p: 2, backgroundColor: "#f5f5f5", borderRadius: 1 }}
+          >
+            <Typography variant="subtitle2">
+              Item: {voidEntryDialogOpen.entry?.metadata?.itemName || "N/A"}
+            </Typography>
+            <Typography variant="body2">
+              Qty: {voidEntryDialogOpen.entry?.metadata?.quantity || "N/A"}
+            </Typography>
+            <Typography variant="body2">
+              Amount:{" "}
+              {voidEntryDialogOpen.entry?.metadata?.total?.toFixed(2) || "N/A"}
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setVoidEntryDialogOpen({ open: false, entry: null })}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={() => handleVoidEntry(voidEntryDialogOpen.entry)}
+            color="error"
+            variant="contained"
+            disabled={
+              entryLoading ===
+              (voidEntryDialogOpen.entry?._id || voidEntryDialogOpen.entry?.id)
+            }
+          >
+            {entryLoading ===
+            (voidEntryDialogOpen.entry?._id || voidEntryDialogOpen.entry?.id)
+              ? "Voiding..."
+              : "Void Entry"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -538,12 +729,12 @@ const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
         open={snackbarOpen}
         autoHideDuration={6000}
         onClose={() => setSnackbarOpen(false)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
         <Alert
           onClose={() => setSnackbarOpen(false)}
           severity={snackbarSeverity}
-          sx={{ width: '100%' }}
+          sx={{ width: "100%" }}
         >
           {snackbarMessage}
         </Alert>

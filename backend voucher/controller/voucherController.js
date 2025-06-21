@@ -412,14 +412,16 @@ exports.toggleVoucherVoid = async (req, res) => {
 
     // Update is_void inside entries array where voucherId matches
     await Entries.updateMany(
-      { "entries.voucherId": updatedVoucher._id },
+      { "entries.voucherId": mongoose.Types.ObjectId(updatedVoucher._id) },
       {
         $set: {
           "entries.$[elem].isVoid": is_void,
         },
       },
       {
-        arrayFilters: [{ "elem.voucherId": updatedVoucher._id }],
+        arrayFilters: [
+          { "elem.voucherId": mongoose.Types.ObjectId(updatedVoucher._id) },
+        ],
       }
     );
 
@@ -600,7 +602,10 @@ exports.getOpeningBalanceByAccount = async (req, res) => {
     const connection = await Promise.race([
       getDbConnection(req.headers.dbprefix),
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Database connection timeout")), 10000)
+        setTimeout(
+          () => reject(new Error("Database connection timeout")),
+          10000
+        )
       ),
     ]);
 
@@ -661,9 +666,11 @@ exports.getOpeningBalanceByAccount = async (req, res) => {
       vouchers: vouchersWithEntries,
       total: 1,
     });
-
   } catch (error) {
-    if (error.message.includes("ETIMEOUT") || error.message.includes("timeout")) {
+    if (
+      error.message.includes("ETIMEOUT") ||
+      error.message.includes("timeout")
+    ) {
       return res.status(503).json({
         success: false,
         message: "Database connection timeout. Please try again.",
@@ -671,7 +678,10 @@ exports.getOpeningBalanceByAccount = async (req, res) => {
       });
     }
 
-    if (error.message.includes("ENOTFOUND") || error.message.includes("querySrv")) {
+    if (
+      error.message.includes("ENOTFOUND") ||
+      error.message.includes("querySrv")
+    ) {
       return res.status(503).json({
         success: false,
         message: "Unable to connect to database. Please check connection.",
@@ -686,7 +696,6 @@ exports.getOpeningBalanceByAccount = async (req, res) => {
     });
   }
 };
-
 
 // Utility function
 function getVoucherCode(type) {
@@ -705,3 +714,37 @@ function getVoucherCode(type) {
     }[type] || "XV"
   );
 }
+
+// Void a single entry in a voucher
+exports.voidVoucherEntry = async (req, res) => {
+  try {
+    const connection = await getDbConnection(req.headers.dbprefix);
+    const Entries = getModel(connection, "Entries", entriesSchema);
+    const { voucherId, entryId } = req.params;
+
+    // Find the entry document containing this entry
+    const entryDoc = await Entries.findOne({
+      "entries._id": entryId,
+      "entries.voucherId": voucherId,
+    });
+    if (!entryDoc) {
+      return res.status(404).json({ message: "Entry not found" });
+    }
+
+    // Update the isVoid field for the specific entry
+    await Entries.updateOne(
+      { _id: entryDoc._id, "entries._id": entryId },
+      { $set: { "entries.$.isVoid": true } }
+    );
+
+    res
+      .status(200)
+      .json({ success: true, message: "Entry voided successfully" });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error voiding entry",
+      error: error.message,
+    });
+  }
+};

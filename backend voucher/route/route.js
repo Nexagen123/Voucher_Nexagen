@@ -10,6 +10,7 @@ const {
   getAllAccountController,
   accountController,
   userController,
+  editGatePassController,
 } = require("../controller/controller");
 const router = express.Router();
 
@@ -20,6 +21,7 @@ router.get("/get", (req, res) => {
 // gate pass routes
 router.post("/gatepass", gatePassController);
 router.get("/allgatepass", getAllGatePassController);
+router.patch("/gatepass/:id", editGatePassController);
 
 // inventory category routes
 router.post("/createcategory", categoryController);

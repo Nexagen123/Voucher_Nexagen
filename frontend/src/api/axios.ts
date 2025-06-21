@@ -11,11 +11,11 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.request.use(
   (config) => {
     // Add dbprefix header - using your actual database name
-    const dbprefix = localStorage.getItem('dbprefix') || 'fast'; // Your actual database name
+    const dbprefix = localStorage.getItem("dbprefix") || "fast"; // Your actual database name
     config.headers.dbprefix = dbprefix;
 
     // Add auth token if available
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -28,7 +28,7 @@ axiosInstance.interceptors.request.use(
 );
 
 // function to register user
-export const addGatePass = async (gatepassData:any) => {
+export const addGatePass = async (gatepassData: any) => {
   try {
     const response = await axiosInstance.post("/gatepass", gatepassData);
     return response;
@@ -47,9 +47,9 @@ export const viewGatePass = async () => {
   }
 };
 
-export const createcategory = async (name:string) => {
+export const createcategory = async (name: string) => {
   try {
-    const response = await axiosInstance.post("/createcategory", {name});
+    const response = await axiosInstance.post("/createcategory", { name });
     return response;
   } catch (error) {
     console.error("Registration Error:", error);
@@ -92,7 +92,10 @@ export const showallstock = async () => {
 // Voucher API functions
 export const addVoucher = async (voucherData: any) => {
   try {
-    const response = await axiosInstance.post("/vouchers/addvoucher", voucherData);
+    const response = await axiosInstance.post(
+      "/vouchers/addvoucher",
+      voucherData
+    );
     return response;
   } catch (error) {
     console.error("Voucher Creation Error:", error);
@@ -100,7 +103,11 @@ export const addVoucher = async (voucherData: any) => {
   }
 };
 
-export const getAllVouchers = async (params?: { type?: string; entries?: boolean; [key: string]: any }) => {
+export const getAllVouchers = async (params?: {
+  type?: string;
+  entries?: boolean;
+  [key: string]: any;
+}) => {
   try {
     const queryParams = new URLSearchParams();
 
@@ -112,7 +119,9 @@ export const getAllVouchers = async (params?: { type?: string; entries?: boolean
       });
     }
 
-    const url = `/vouchers/getvoucher${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const url = `/vouchers/getvoucher${
+      queryParams.toString() ? `?${queryParams.toString()}` : ""
+    }`;
     const response = await axiosInstance.get(url);
     return response;
   } catch (error) {
@@ -121,7 +130,10 @@ export const getAllVouchers = async (params?: { type?: string; entries?: boolean
   }
 };
 
-export const getVoucherById = async (id: string, params?: { entries?: boolean; [key: string]: any }) => {
+export const getVoucherById = async (
+  id: string,
+  params?: { entries?: boolean; [key: string]: any }
+) => {
   try {
     const queryParams = new URLSearchParams();
 
@@ -133,7 +145,9 @@ export const getVoucherById = async (id: string, params?: { entries?: boolean; [
       });
     }
 
-    const url = `/vouchers/${id}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const url = `/vouchers/${id}${
+      queryParams.toString() ? `?${queryParams.toString()}` : ""
+    }`;
     const response = await axiosInstance.get(url);
     return response;
   } catch (error) {
@@ -153,3 +167,12 @@ export const getAllAccounts = async () => {
   }
 };
 
+export const editGatePass = async (id: string, gatepassData: any) => {
+  try {
+    const response = await axiosInstance.patch(`/gatepass/${id}`, gatepassData);
+    return response;
+  } catch (error) {
+    console.error("Edit GatePass Error:", error);
+    throw error;
+  }
+};

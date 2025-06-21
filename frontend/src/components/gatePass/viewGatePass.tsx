@@ -23,7 +23,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  IconButton,
 } from "@mui/material";
 import {
   Visibility as VisibilityIcon,
@@ -37,13 +36,6 @@ import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import logo from "../../assets/logo.png";
 
-interface GatePassVoucher {
-  id: string;
-  date: string;
-  partyName: string;
-  status: "Gate-In" | "Gate-Out";
-  addedBy: string;
-}
 
 const ViewGatePass: React.FC = () => {
   const [fromDate, setFromDate] = useState("");
@@ -73,7 +65,7 @@ const ViewGatePass: React.FC = () => {
     setSearchQuery(event.target.value);
   };
 
-  const handleChangePage = (event: unknown, newPage: number) => {
+  const handleChangePage = (_: unknown, newPage: number) => {
     setPage(newPage);
   };
 
@@ -84,9 +76,6 @@ const ViewGatePass: React.FC = () => {
     setPage(0);
   };
 
-  const handleSubmitFilter = () => {
-    console.log("Filtering from:", fromDate, "to:", toDate);
-  };
 
   const handleOpenDialog = (voucher: any, igpId?: number) => {
     setSelectedVoucher({ ...voucher, igpId });
@@ -126,8 +115,7 @@ const ViewGatePass: React.FC = () => {
     }
     // Update in backend
     try {
-      const id = selectedVoucher.id || selectedVoucher._id;
-      // await updateGatePassStatus(id, editData.status);
+      // await updateGatePassStatus(selectedVoucher.id || selectedVoucher._id, editData.status);
       // Update the selected voucher in the dialog
       setSelectedVoucher({
         ...selectedVoucher,
@@ -171,7 +159,6 @@ const ViewGatePass: React.FC = () => {
         format: "a4",
       });
       const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
       const imgProps = pdf.getImageProperties(imgData);
       const pdfWidth = pageWidth;
       const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;

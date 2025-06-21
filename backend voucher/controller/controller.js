@@ -9,20 +9,30 @@ exports.gatePassController = async (req, res) => {
   try {
     const { date, party, orderNo, type, rows } = req.body;
 
-    if (!date || !party || !orderNo || !type || !Array.isArray(rows) || rows.length === 0) {
-      return res.status(400).send({ message: "All fields are required and rows must be a non-empty array" });
+    if (
+      !date ||
+      !party ||
+      !orderNo ||
+      !type ||
+      !Array.isArray(rows) ||
+      rows.length === 0
+    ) {
+      return res
+        .status(400)
+        .send({
+          message: "All fields are required and rows must be a non-empty array",
+        });
     }
 
     // Validate each row
     for (const row of rows) {
-      if (
-        !row.id ||
-        !row.productName ||
-        !row.detail ||
-        !row.qty ||
-        !row.unit
-      ) {
-        return res.status(400).send({ message: "Each row must have id, productName, detail, qty, and unit" });
+      if (!row.id || !row.productName || !row.detail || !row.qty || !row.unit) {
+        return res
+          .status(400)
+          .send({
+            message:
+              "Each row must have id, productName, detail, qty, and unit",
+          });
       }
     }
 
@@ -79,9 +89,18 @@ exports.categoryController = async (req, res) => {
 // Create a new stock for inventory
 exports.stockController = async (req, res) => {
   try {
-    const { itemName, itemCode, quantity, category, unit, rate, total } = req.body;
+    const { itemName, itemCode, quantity, category, unit, rate, total } =
+      req.body;
 
-    if (!itemName || !itemCode || !quantity || !category || !unit || !rate || !total) {
+    if (
+      !itemName ||
+      !itemCode ||
+      !quantity ||
+      !category ||
+      !unit ||
+      !rate ||
+      !total
+    ) {
       return res.status(400).send({ message: "All fields are required" });
     }
 
@@ -116,11 +135,11 @@ exports.getAllGatePassController = async (req, res) => {
     let gatePasses = await gatePassSchema.find();
     if (gatePasses.length > 0) {
       res.send(gatePasses);
-    }else{
+    } else {
       res.send({
         success: false,
-        message: "No gate passes found"
-      })
+        message: "No gate passes found",
+      });
     }
   } catch (error) {
     res.status(500).send({
@@ -138,11 +157,11 @@ exports.getAllCategoryController = async (req, res) => {
     let catehory = await categorySchema.find();
     if (catehory.length > 0) {
       res.send(catehory);
-    }else{
+    } else {
       res.send({
         success: false,
-        message: "No category found"
-      })
+        message: "No category found",
+      });
     }
   } catch (error) {
     res.status(500).send({
@@ -159,11 +178,11 @@ exports.getAllStockController = async (req, res) => {
     let stock = await stockSchema.find();
     if (stock.length > 0) {
       res.send(stock);
-    }else{
+    } else {
       res.send({
         success: false,
-        message: "No stock item found"
-      })
+        message: "No stock item found",
+      });
     }
   } catch (error) {
     res.status(500).send({
@@ -175,7 +194,7 @@ exports.getAllStockController = async (req, res) => {
   }
 };
 
-// testing purpose only 
+// testing purpose only
 // Create a new user
 exports.userController = async (req, res) => {
   try {
@@ -231,7 +250,7 @@ exports.accountController = async (req, res) => {
   }
 };
 
-// Get all users for testing purpose 
+// Get all users for testing purpose
 exports.getAllUserController = async (req, res) => {
   try {
     let user = await userSchema.find();
@@ -247,7 +266,7 @@ exports.getAllUserController = async (req, res) => {
     console.log(error);
   }
 };
-// Get all accounts for testing purpose 
+// Get all accounts for testing purpose
 exports.getAllAccountController = async (req, res) => {
   try {
     let account = await accountSchema.find();
@@ -258,6 +277,42 @@ exports.getAllAccountController = async (req, res) => {
     res.status(500).send({
       success: false,
       message: "Error while fetching account",
+      error,
+    });
+    console.log(error);
+  }
+};
+
+// Edit a gate pass by ID
+exports.editGatePassController = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+    if (!id) {
+      return res
+        .status(400)
+        .send({ success: false, message: "Gate pass ID is required" });
+    }
+    // Validate updateData if needed (optional)
+    const updatedGatePass = await gatePassSchema.findByIdAndUpdate(
+      id,
+      updateData,
+      { new: true }
+    );
+    if (!updatedGatePass) {
+      return res
+        .status(404)
+        .send({ success: false, message: "Gate pass not found" });
+    }
+    res.send({
+      success: true,
+      message: "Gate pass updated successfully",
+      gatePass: updatedGatePass,
+    });
+  } catch (error) {
+    res.status(500).send({
+      success: false,
+      message: "Error while updating gate pass",
       error,
     });
     console.log(error);

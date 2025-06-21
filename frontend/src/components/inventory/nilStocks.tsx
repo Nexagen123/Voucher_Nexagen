@@ -166,7 +166,6 @@ const NilStocks: React.FC<NilStocksProps> = ({
           sx={{
             mb: { xs: 2, md: 3 },
             fontWeight: "bold",
-            color: "black",
             backgroundColor: "#3da0bd",
             color: "white",
             py: { xs: 1.5, md: 2 },
@@ -368,7 +367,7 @@ const NilStocks: React.FC<NilStocksProps> = ({
                     </TableCell>
                   </TableRow>
                 ) : (
-                  currentItems.map((item, index) => (
+                  currentItems.map((item) => (
                     <TableRow
                       key={item.id}
                       sx={{

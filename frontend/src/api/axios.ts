@@ -156,6 +156,17 @@ export const getVoucherById = async (
   }
 };
 
+// Update a voucher by ID
+export const updateVoucher = async (id: string, voucherData: any) => {
+  try {
+    const response = await axiosInstance.put(`/vouchers/${id}`, voucherData);
+    return response;
+  } catch (error) {
+    console.error("Voucher Update Error:", error);
+    throw error;
+  }
+};
+
 // Account API functions
 export const getAllAccounts = async () => {
   try {

@@ -27,6 +27,7 @@ import {
   Visibility as DetailsIcon,
   Search as SearchIcon,
 } from '@mui/icons-material';
+import { showallstock, showallcategory } from '../../api/axios';
 
 // Interface for Stock Summary Item
 interface StockSummaryItem {
@@ -39,6 +40,23 @@ interface StockSummaryItem {
   totalSReturnQty: number;
   totalStockQty: number;
   totalValue: number;
+}
+
+// Interface for Stock fetched from API
+interface StockApiItem {
+  _id: string;
+  itemName: string;
+  itemCode: string;
+  quantity: number;
+  category: string | { _id: string; name: string };
+  unit: string;
+  rate: number;
+  total: number;
+}
+
+interface CategoryApiItem {
+  _id: string;
+  name: string;
 }
 
 interface StockSummaryProps {
@@ -63,20 +81,52 @@ const StockSummary: React.FC<StockSummaryProps> = ({
   // State for API data (placeholder for future implementation)
   const [apiItems, setApiItems] = useState<StockSummaryItem[]>([]);
   const [apiLoading, setApiLoading] = useState(false);
+  const [categories, setCategories] = useState<CategoryApiItem[]>([]);
 
   // Use only API data or props
   const displayItems = apiItems.length > 0 ? apiItems : items;
 
-  // Fetch stock summary from API (placeholder for future implementation)
+  // Helper to generate unique stock summary IDs
+  function generateStockSummaryId(index: number) {
+    return `ss${(100 + index).toString().padStart(3, '0')}`;
+  }
+
+  // Fetch categories and stocks, then map category IDs to names
   const fetchStockSummary = async () => {
     try {
       setApiLoading(true);
+      // Fetch categories first
+      const catRes = await showallcategory();
+      const catData: CategoryApiItem[] = catRes.data;
+      setCategories(catData);
+      // Fetch stocks
+      const response = await showallstock();
+      const data: StockApiItem[] = response.data;
 
-      console.log('Fetching stock summary...');
+      // Map API data to StockSummaryItem[]
+      const mapped: StockSummaryItem[] = data.map((item, idx) => {
+        let categoryName = '';
+        if (typeof item.category === 'object' && item.category !== null && 'name' in item.category) {
+          categoryName = item.category.name;
+        } else if (typeof item.category === 'string') {
+          // Try to find category name from fetched categories
+          const found = catData.find((c) => c._id === item.category);
+          categoryName = found ? found.name : item.category;
+        }
+        return {
+          id: generateStockSummaryId(idx),
+          category: categoryName,
+          totalOpeningQty: item.quantity, // You may want to adjust this logic
+          totalPurchasesQty: 0, // Placeholder, adjust as needed
+          totalPReturnQty: 0, // Placeholder
+          totalSoldQty: 0, // Placeholder
+          totalSReturnQty: 0, // Placeholder
+          totalStockQty: item.quantity, // You may want to adjust this logic
+          totalValue: item.total,
+        };
+      });
 
-      // TODO: Replace with actual stock summary API when implemented
-      // For now, just use sample data
-      setApiItems([]);
+      setApiItems(mapped);
 
     } catch (error) {
       console.error('Error fetching stock summary:', error);

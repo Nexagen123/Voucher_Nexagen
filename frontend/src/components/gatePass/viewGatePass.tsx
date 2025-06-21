@@ -38,8 +38,6 @@ import { viewGatePass, editGatePass, voidGatePass } from "../../api/axios";
 import logo from "../../assets/logo.png";
 import MuiAlert from "@mui/material/Alert";
 import { useReactToPrint } from "react-to-print";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 
 // Add type declaration for File System Access API
 
@@ -175,8 +173,6 @@ const ViewGatePass: React.FC = () => {
       setSnackbarOpen(true);
     }
   };
-
-  const handleOpenPrintPreview = () => setPrintPreviewOpen(true);
 
   const handleClosePrintPreview = () => setPrintPreviewOpen(false);
 
@@ -514,29 +510,6 @@ const ViewGatePass: React.FC = () => {
       </Box>
     </div>
   ));
-
-  const handleJsPdfPrint = async () => {
-    if (!pdfContentRef.current) return;
-    const input = pdfContentRef.current;
-    // Use html2canvas to render the content as an image
-    const canvas = await html2canvas(input, { scale: 2 });
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF({
-      orientation: "portrait",
-      unit: "pt",
-      format: "a4",
-    });
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    // Calculate image dimensions to fit A4
-    const imgProps = canvas;
-    const imgWidth = pageWidth - 40;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    pdf.addImage(imgData, "PNG", 20, 20, imgWidth, imgHeight);
-    pdf.save(
-      `GatePass_IGP-${selectedVoucher?.igpId || selectedVoucher?.id || ""}.pdf`
-    );
-  };
 
   return (
     <Box
@@ -899,10 +872,11 @@ const ViewGatePass: React.FC = () => {
                         );
                         setSnackbarSeverity("success");
                         setSnackbarOpen(true);
-                        handleCloseDialog();
+                        // Remove from main data
                         setVoucherData((prev: any[]) =>
                           prev.filter((v) => v._id !== selectedVoucher._id)
                         );
+                        handleCloseDialog();
                       } catch (error) {
                         setSnackbarMessage(
                           `Failed to void Gate Pass #IGP-${selectedVoucher.igpId}.`

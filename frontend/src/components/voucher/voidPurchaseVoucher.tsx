@@ -229,14 +229,15 @@ const VoidPurchaseVoucher: React.FC<VoidPurchaseVoucherProps> = ({
         setSnackbarMessage("Unvoid successful!");
         setSnackbarSeverity("success");
         setSnackbarOpen(true);
-        await fetchVoidedVouchers();
+        // Remove the unvoided voucher/entry from the current list dynamically
+        setApiVouchers((prev) => prev.filter((v) => v.id !== voucher.id));
       } else {
-        setSnackbarMessage("Failed to unvoid.");
+        setSnackbarMessage("Unvoid failed!"); // Corrected message for failure
         setSnackbarSeverity("error");
         setSnackbarOpen(true);
       }
     } catch (error) {
-      setSnackbarMessage("Error during unvoid.");
+      setSnackbarMessage("Unvoid failed!"); // Corrected message for failure
       setSnackbarSeverity("error");
       setSnackbarOpen(true);
     } finally {

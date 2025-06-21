@@ -376,10 +376,19 @@ exports.updateVoucher = async (req, res) => {
       entries: entriesDocs,
     });
   } catch (error) {
-    console.error(error);
+    // Enhanced error logging for debugging
+    console.error("UpdateVoucher Error:", {
+      message: error.message,
+      stack: error.stack,
+      body: req.body,
+      params: req.params,
+    });
     res.status(500).json({
       message: "Error updating voucher",
       error: error.message,
+      stack: error.stack,
+      body: req.body,
+      params: req.params,
     });
   }
 };
@@ -738,12 +747,10 @@ exports.voidVoucherEntry = async (req, res) => {
       { $set: { "entries.$.isVoid": isVoid } } // Use isVoid from request
     );
 
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: `Entry ${isVoid ? "voided" : "unvoided"} successfully`,
-      });
+    res.status(200).json({
+      success: true,
+      message: `Entry ${isVoid ? "voided" : "unvoided"} successfully`,
+    });
   } catch (error) {
     res.status(500).json({
       success: false,

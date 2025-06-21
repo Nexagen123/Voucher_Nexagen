@@ -24,6 +24,7 @@ import VoidPurchaseReturn from "./components/Return Voucher/voidPurchaseReturn";
 // import Login from "./components/auth/Login";
 import AddGatePass from "./components/gatePass/addGatePass";
 import ViewGatePass from "./components/gatePass/viewGatePass";
+import VoidGatePass from "./components/gatePass/voidGatePass";
 import "./App.css";
 
 // Create a custom theme
@@ -46,40 +47,47 @@ const theme = createTheme({
 
 function App() {
   // Load initial section from localStorage, default to "dashboard"
-  const [currentSection, setCurrentSection] = useState<string>(() => localStorage.getItem("currentSection") || "dashboard");
+  const [currentSection, setCurrentSection] = useState<string>(
+    () => localStorage.getItem("currentSection") || "dashboard"
+  );
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
   const [checkingAuth, setCheckingAuth] = useState<boolean>(true);
 
   useEffect(() => {
-    console.log('🚀 App useEffect triggered');
+    console.log("🚀 App useEffect triggered");
     const token = localStorage.getItem("token");
-    console.log('🔍 Auth Check - Token found:', !!token);
-    console.log('🔍 Current state - isAuthenticated:', isAuthenticated, 'checkingAuth:', checkingAuth);
+    console.log("🔍 Auth Check - Token found:", !!token);
+    console.log(
+      "🔍 Current state - isAuthenticated:",
+      isAuthenticated,
+      "checkingAuth:",
+      checkingAuth
+    );
 
     if (!token) {
-      console.log('❌ No token found - showing login');
+      console.log("❌ No token found - showing login");
       setCheckingAuth(false);
       // setIsAuthenticated(false);
       return;
     }
 
-    console.log('🔍 Verifying token with backend...');
+    console.log("🔍 Verifying token with backend...");
     // Verify token with backend
     fetch("http://localhost:8000/api/users/me", {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => {
-        console.log('🔍 Token verification response:', res.status);
+        console.log("🔍 Token verification response:", res.status);
         return res.ok ? res.json() : Promise.reject(`HTTP ${res.status}`);
       })
       .then((data) => {
-        console.log('✅ Token valid - user authenticated:', data);
+        console.log("✅ Token valid - user authenticated:", data);
         setIsAuthenticated(true);
         setCheckingAuth(false);
       })
       .catch((error) => {
-        console.log('❌ Token verification failed:', error);
-        console.log('🗑️ Removing invalid token');
+        console.log("❌ Token verification failed:", error);
+        console.log("🗑️ Removing invalid token");
         localStorage.removeItem("token");
         setIsAuthenticated(false);
         setCheckingAuth(false);
@@ -145,6 +153,8 @@ function App() {
         return <AddGatePass />;
       case "view-gate-pass":
         return <ViewGatePass />;
+      case "void-gate-pass":
+        return <VoidGatePass />;
       case "reports":
         return (
           <div style={{ padding: "20px", textAlign: "center" }}>
@@ -162,10 +172,15 @@ function App() {
     }
   };
 
-  console.log('🎨 Rendering App - checkingAuth:', checkingAuth, 'isAuthenticated:', isAuthenticated);
+  console.log(
+    "🎨 Rendering App - checkingAuth:",
+    checkingAuth,
+    "isAuthenticated:",
+    isAuthenticated
+  );
 
   if (checkingAuth) {
-    console.log('🔄 Showing loading screen');
+    console.log("🔄 Showing loading screen");
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
@@ -194,7 +209,7 @@ function App() {
   //   );
   // }
 
-  console.log('✅ Showing main app');
+  console.log("✅ Showing main app");
 
   return (
     <ThemeProvider theme={theme}>

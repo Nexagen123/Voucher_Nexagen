@@ -34,11 +34,12 @@ import {
   Add as AddIcon,
   Delete as DeleteIcon,
 } from "@mui/icons-material";
-import { viewGatePass, editGatePass } from "../../api/axios";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
+import { viewGatePass, editGatePass, voidGatePass } from "../../api/axios";
 import logo from "../../assets/logo.png";
 import MuiAlert from "@mui/material/Alert";
+import { useReactToPrint } from "react-to-print";
+
+// Add type declaration for File System Access API
 
 const ViewGatePass: React.FC = () => {
   const [fromDate, setFromDate] = useState("");
@@ -58,8 +59,9 @@ const ViewGatePass: React.FC = () => {
   const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">(
     "success"
   );
-
-  const printRef = React.useRef<HTMLDivElement>(null);
+  const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
+  const printComponentRef = React.useRef<HTMLDivElement>(null);
+  const [selectedPageSize, setSelectedPageSize] = useState("A4");
 
   const fetchGatePass = async () => {
     const response = await viewGatePass();
@@ -171,25 +173,32 @@ const ViewGatePass: React.FC = () => {
     }
   };
 
-  const handlePrint = async () => {
-    if (printRef.current) {
-      const canvas = await html2canvas(printRef.current, { scale: 2 });
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "pt",
-        format: "a4",
-      });
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const imgProps = pdf.getImageProperties(imgData);
-      const pdfWidth = pageWidth;
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-      pdf.save(
-        `GatePass_${
-          selectedVoucher?.id || selectedVoucher?._id || "details"
-        }.pdf`
-      );
+  const handleOpenPrintPreview = () => setPrintPreviewOpen(true);
+
+  const handleClosePrintPreview = () => setPrintPreviewOpen(false);
+
+  const handlePageSizeChange = (event: any) =>
+    setSelectedPageSize(event.target.value);
+
+  // Use 'as any' to fix the TypeScript error for 'content' property
+  const handleReactToPrint = useReactToPrint({
+    content: () => printComponentRef.current,
+    documentTitle: selectedVoucher
+      ? `GatePass_IGP-${selectedVoucher.igpId || selectedVoucher.id || ""}`
+      : "GatePass",
+    removeAfterPrint: true,
+    pageStyle: `@page { size: ${selectedPageSize}; margin: 16mm; } @media print { .no-print { display: none !important; } body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }`,
+    onAfterPrint: handleClosePrintPreview,
+  } as any);
+
+  // Add a helper to ensure print content is mounted before printing
+  const handlePrintNow = () => {
+    if (printComponentRef.current) {
+      handleReactToPrint();
+    } else {
+      setSnackbarMessage("Print content not ready. Please try again.");
+      setSnackbarSeverity("error");
+      setSnackbarOpen(true);
     }
   };
 
@@ -216,6 +225,200 @@ const ViewGatePass: React.FC = () => {
   const handleCancelEdit = () => {
     setEditMode(false);
   };
+
+  // Printable content as a separate component
+  const GatePassPrintContent = React.forwardRef<
+    HTMLDivElement,
+    { voucher: any }
+  >(({ voucher }, ref) => (
+    <div ref={ref} style={{ width: "100%" }}>
+      <Box
+        sx={{
+          p: 3,
+          background: "#fff",
+          borderRadius: 2,
+          minWidth: 700,
+          maxWidth: 1300,
+          fontFamily: "Roboto, Arial",
+          color: "#222",
+          border: "1px solid #e0e0e0",
+          mx: "auto",
+        }}
+      >
+        {/* Header Row: Logo, Business Info, Print Date, Opening Balance */}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            mb: 2,
+          }}
+        >
+          {/* Logo and Info */}
+          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
+            <Box
+              component="img"
+              src={logo}
+              alt="Nexagen Logo"
+              sx={{
+                width: 70,
+                height: 70,
+                objectFit: "contain",
+                mr: 2,
+              }}
+            />
+            <Box>
+              <Typography
+                variant="h6"
+                sx={{ fontWeight: 700, letterSpacing: 1 }}
+              >
+                NEXAGEN
+              </Typography>
+              <Typography sx={{ fontSize: 14 }}>ALI MALL SUSAN ROAD</Typography>
+              <Typography sx={{ fontSize: 14 }}>
+                Phone: | Cell: | Email: test@mail.com
+              </Typography>
+              <Typography sx={{ fontSize: 14 }}>
+                NTN#: 455184-8 | LIC#: 325
+              </Typography>
+            </Box>
+          </Box>
+          {/* Print Date and Balance */}
+          <Box sx={{ minWidth: 180 }}>
+            <Typography sx={{ textAlign: "right", fontSize: 13, mb: 1 }}>
+              Print Date:{" "}
+              {new Date().toLocaleDateString("en-GB", {
+                weekday: "short",
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+              })}
+            </Typography>
+            <Box
+              sx={{
+                border: "1px solid #222",
+                borderRadius: 1,
+                overflow: "hidden",
+              }}
+            >
+              <Box
+                sx={{
+                  bgcolor: "#f5f7fa",
+                  p: 1,
+                  textAlign: "center",
+                  fontWeight: 600,
+                  fontSize: 15,
+                  borderBottom: "1px solid #222",
+                }}
+              >
+                Gate Pass Type
+              </Box>
+              <Box
+                sx={{
+                  p: 1,
+                  textAlign: "center",
+                  fontWeight: 700,
+                  fontSize: 16,
+                }}
+              >
+                {voucher.type || voucher.status}
+              </Box>
+            </Box>
+          </Box>
+        </Box>
+        {/* Section Header */}
+        <Box
+          sx={{
+            bgcolor: "#1976d2",
+            color: "#fff",
+            p: 1.2,
+            borderRadius: 1,
+            mb: 2,
+            fontWeight: 700,
+            fontSize: 18,
+            textAlign: "center",
+            letterSpacing: 1,
+          }}
+        >
+          {`Gate Pass #IGP-${
+            voucher && voucher.igpId !== undefined ? voucher.igpId : "-"
+          }`}
+        </Box>
+        {/* Main Details */}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            mb: 2,
+          }}
+        >
+          <Box>
+            <Typography sx={{ fontWeight: 500, mb: 0.5 }}>
+              <b>Date:</b> {voucher.date}
+            </Typography>
+            <Typography sx={{ fontWeight: 500, mb: 0.5 }}>
+              <b>Party Name:</b> {voucher.party || voucher.partyName}
+            </Typography>
+            <Typography sx={{ fontWeight: 500, mb: 0.5 }}>
+              <b>Order No:</b> {voucher.orderNo || "-"}
+            </Typography>
+          </Box>
+        </Box>
+        {/* Product Table for Print */}
+        {Array.isArray(voucher.rows) && voucher.rows.length > 0 && (
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>
+              Products
+            </Typography>
+            <Table
+              size="small"
+              sx={{ maxWidth: 600, border: "1px solid #e0e0e0" }}
+            >
+              <TableHead>
+                <TableRow sx={{ bgcolor: "#e3f2fd" }}>
+                  <TableCell sx={{ fontWeight: "bold" }}>
+                    Product Name
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>Quantity</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>Unit</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {voucher.rows.map((row: any, idx: number) => (
+                  <TableRow key={row.id || idx}>
+                    <TableCell>{row.productName}</TableCell>
+                    <TableCell>{row.qty}</TableCell>
+                    <TableCell>{row.unit}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Box>
+        )}
+        {/* Signatures */}
+        <Box
+          sx={{
+            mt: 4,
+            display: "flex",
+            justifyContent: "space-between",
+          }}
+        >
+          <Box>
+            <Typography variant="body2" color="text.secondary">
+              Signature (Issuer)
+            </Typography>
+            <Box sx={{ borderBottom: "1px solid #888", width: 120, mt: 2 }} />
+          </Box>
+          <Box>
+            <Typography variant="body2" color="text.secondary">
+              Signature (Receiver)
+            </Typography>
+            <Box sx={{ borderBottom: "1px solid #888", width: 120, mt: 2 }} />
+          </Box>
+        </Box>
+      </Box>
+    </div>
+  ));
 
   return (
     <Box
@@ -420,225 +623,11 @@ const ViewGatePass: React.FC = () => {
       <Dialog
         open={openDialog}
         onClose={handleCloseDialog}
-        maxWidth="md" // Changed from 'sm' to 'md' for wider dialog
+        maxWidth="md"
         fullWidth
       >
         <DialogTitle>Gate Pass Details</DialogTitle>
         <DialogContent dividers>
-          {/* Printable content for PDF generation */}
-          <Box
-            ref={printRef}
-            sx={{
-              display: selectedVoucher && !editMode ? "block" : "none",
-              p: 3,
-              background: "#fff",
-              borderRadius: 2,
-              mb: 2,
-              minWidth: 700, // Increased width for print area
-              maxWidth: 1300,
-              fontFamily: "Roboto, Arial",
-              color: "#222",
-              border: "1px solid #e0e0e0",
-              mx: "auto",
-            }}
-          >
-            {selectedVoucher && !editMode && (
-              <>
-                {/* Header Row: Logo, Business Info, Print Date, Opening Balance */}
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                    mb: 2,
-                  }}
-                >
-                  {/* Logo and Info */}
-                  <Box
-                    sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}
-                  >
-                    <Box
-                      component="img"
-                      src={logo}
-                      alt="Nexagen Logo"
-                      sx={{
-                        width: 70,
-                        height: 70,
-                        objectFit: "contain",
-                        mr: 2,
-                      }}
-                    />
-                    <Box>
-                      <Typography
-                        variant="h6"
-                        sx={{ fontWeight: 700, letterSpacing: 1 }}
-                      >
-                        NEXAGEN
-                      </Typography>
-                      <Typography sx={{ fontSize: 14 }}>
-                        ALI MALL SUSAN ROAD
-                      </Typography>
-                      <Typography sx={{ fontSize: 14 }}>
-                        Phone: | Cell: | Email: test@mail.com
-                      </Typography>
-                      <Typography sx={{ fontSize: 14 }}>
-                        NTN#: 455184-8 | LIC#: 325
-                      </Typography>
-                    </Box>
-                  </Box>
-                  {/* Print Date and Balance */}
-                  <Box sx={{ minWidth: 180 }}>
-                    <Typography
-                      sx={{ textAlign: "right", fontSize: 13, mb: 1 }}
-                    >
-                      Print Date:{" "}
-                      {new Date().toLocaleDateString("en-GB", {
-                        weekday: "short",
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </Typography>
-                    <Box
-                      sx={{
-                        border: "1px solid #222",
-                        borderRadius: 1,
-                        overflow: "hidden",
-                      }}
-                    >
-                      <Box
-                        sx={{
-                          bgcolor: "#f5f7fa",
-                          p: 1,
-                          textAlign: "center",
-                          fontWeight: 600,
-                          fontSize: 15,
-                          borderBottom: "1px solid #222",
-                        }}
-                      >
-                        Gate Pass Type
-                      </Box>
-                      <Box
-                        sx={{
-                          p: 1,
-                          textAlign: "center",
-                          fontWeight: 700,
-                          fontSize: 16,
-                        }}
-                      >
-                        {selectedVoucher.type || selectedVoucher.status}
-                      </Box>
-                    </Box>
-                  </Box>
-                </Box>
-                {/* Section Header */}
-                <Box
-                  sx={{
-                    bgcolor: "#1976d2",
-                    color: "#fff",
-                    p: 1.2,
-                    borderRadius: 1,
-                    mb: 2,
-                    fontWeight: 700,
-                    fontSize: 18,
-                    textAlign: "center",
-                    letterSpacing: 1,
-                  }}
-                >
-                  {`Gate Pass #IGP-${
-                    selectedVoucher && selectedVoucher.igpId !== undefined
-                      ? selectedVoucher.igpId
-                      : "-"
-                  }`}
-                </Box>
-                {/* Main Details */}
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    mb: 2,
-                  }}
-                >
-                  <Box>
-                    <Typography sx={{ fontWeight: 500, mb: 0.5 }}>
-                      <b>Date:</b> {selectedVoucher.date}
-                    </Typography>
-                    <Typography sx={{ fontWeight: 500, mb: 0.5 }}>
-                      <b>Party Name:</b>{" "}
-                      {selectedVoucher.party || selectedVoucher.partyName}
-                    </Typography>
-                    <Typography sx={{ fontWeight: 500, mb: 0.5 }}>
-                      <b>Order No:</b> {selectedVoucher.orderNo || "-"}
-                    </Typography>
-                  </Box>
-                </Box>
-                {/* Product Table for Print */}
-                {Array.isArray(selectedVoucher.rows) &&
-                  selectedVoucher.rows.length > 0 && (
-                    <Box sx={{ mt: 2 }}>
-                      <Typography
-                        variant="subtitle1"
-                        sx={{ mb: 1, fontWeight: 600 }}
-                      >
-                        Products
-                      </Typography>
-                      <Table
-                        size="small"
-                        sx={{ maxWidth: 600, border: "1px solid #e0e0e0" }}
-                      >
-                        <TableHead>
-                          <TableRow sx={{ bgcolor: "#e3f2fd" }}>
-                            <TableCell sx={{ fontWeight: "bold" }}>
-                              Product Name
-                            </TableCell>
-                            <TableCell sx={{ fontWeight: "bold" }}>
-                              Quantity
-                            </TableCell>
-                            <TableCell sx={{ fontWeight: "bold" }}>
-                              Unit
-                            </TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {selectedVoucher.rows.map((row: any, idx: number) => (
-                            <TableRow key={row.id || idx}>
-                              <TableCell>{row.productName}</TableCell>
-                              <TableCell>{row.qty}</TableCell>
-                              <TableCell>{row.unit}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </Box>
-                  )}
-                {/* Signatures */}
-                <Box
-                  sx={{
-                    mt: 4,
-                    display: "flex",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <Box>
-                    <Typography variant="body2" color="text.secondary">
-                      Signature (Issuer)
-                    </Typography>
-                    <Box
-                      sx={{ borderBottom: "1px solid #888", width: 120, mt: 2 }}
-                    />
-                  </Box>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary">
-                      Signature (Receiver)
-                    </Typography>
-                    <Box
-                      sx={{ borderBottom: "1px solid #888", width: 120, mt: 2 }}
-                    />
-                  </Box>
-                </Box>
-              </>
-            )}
-          </Box>
           {/* Editable or view content (as before) */}
           {selectedVoucher && !editMode && (
             <Paper
@@ -763,6 +752,7 @@ const ViewGatePass: React.FC = () => {
                   startIcon={<EditIcon />}
                   onClick={handleEdit}
                   sx={{ borderRadius: 2, minWidth: 100 }}
+                  className="no-print"
                 >
                   Edit
                 </Button>
@@ -770,10 +760,39 @@ const ViewGatePass: React.FC = () => {
                   variant="contained"
                   color="secondary"
                   startIcon={<PrintIcon />}
-                  onClick={handlePrint}
+                  onClick={handleOpenPrintPreview} // Always open the print preview dialog
                   sx={{ borderRadius: 2, minWidth: 100 }}
+                  className="no-print"
                 >
                   Print
+                </Button>
+                <Button
+                  variant="contained"
+                  color="error"
+                  startIcon={<DeleteIcon />}
+                  onClick={async () => {
+                    try {
+                      await voidGatePass(selectedVoucher._id);
+                      setSnackbarMessage("Gate Pass voided successfully!");
+                      setSnackbarSeverity("success");
+                      setSnackbarOpen(true);
+                      handleCloseDialog();
+                      // Remove the voided gate pass from local state immediately
+                      setVoucherData((prev: any[]) =>
+                        prev.filter((v) => v._id !== selectedVoucher._id)
+                      );
+                      // Optionally, you can still call fetchGatePass() if you want to refresh from server
+                      // fetchGatePass();
+                    } catch (error) {
+                      setSnackbarMessage("Failed to void Gate Pass.");
+                      setSnackbarSeverity("error");
+                      setSnackbarOpen(true);
+                    }
+                  }}
+                  sx={{ borderRadius: 2, minWidth: 100 }}
+                  className="no-print"
+                >
+                  Void
                 </Button>
               </Box>
               {/* Signatures */}
@@ -1000,21 +1019,101 @@ const ViewGatePass: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Snackbar for messages */}
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={3000}
-        onClose={() => setSnackbarOpen(false)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <MuiAlert
-          onClose={() => setSnackbarOpen(false)}
-          severity={snackbarSeverity}
-          sx={{ width: "100%" }}
+      {/* Print Preview Dialog (Modern Print Functionality) */}
+      {printPreviewOpen && selectedVoucher && (
+        <Dialog
+          open={printPreviewOpen}
+          onClose={handleClosePrintPreview}
+          maxWidth="lg"
+          fullWidth
         >
-          {snackbarMessage}
-        </MuiAlert>
-      </Snackbar>
+          <DialogTitle>Print Preview</DialogTitle>
+          <DialogContent>
+            <Box sx={{ mb: 2, display: "flex", alignItems: "center", gap: 2 }}>
+              <Typography variant="subtitle1">Page Size:</Typography>
+              <Select value={selectedPageSize} onChange={handlePageSizeChange}>
+                <MenuItem value="A4">A4</MenuItem>
+                <MenuItem value="Letter">Letter</MenuItem>
+                <MenuItem value="Legal">Legal</MenuItem>
+              </Select>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handlePrintNow}
+              >
+                Print Now
+              </Button>
+            </Box>
+            <Box
+              sx={{
+                border: "1px solid #ccc",
+                p: 2,
+                background: "#fff",
+                overflow: "auto",
+              }}
+            >
+              <div
+                style={{
+                  width:
+                    selectedPageSize === "A4"
+                      ? 794
+                      : selectedPageSize === "Letter"
+                      ? 816
+                      : 850,
+                  margin: "0 auto",
+                }}
+              >
+                {/* Render the print content for preview */}
+                <GatePassPrintContent
+                  ref={printComponentRef}
+                  voucher={selectedVoucher}
+                />
+              </div>
+            </Box>
+            <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
+              <Button
+                variant="outlined"
+                color="inherit"
+                onClick={handleClosePrintPreview}
+              >
+                Close
+              </Button>
+            </Box>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Snackbar for messages */}
+      <Box
+        sx={{
+          position: "fixed",
+          top: 0,
+          right: 0,
+          width: "auto",
+          zIndex: 1400,
+          display: "flex",
+          justifyContent: "flex-end",
+          alignItems: "flex-start",
+          pointerEvents: "none",
+          p: 2,
+        }}
+      >
+        <Snackbar
+          open={snackbarOpen}
+          autoHideDuration={3000}
+          onClose={() => setSnackbarOpen(false)}
+          anchorOrigin={{ vertical: "top", horizontal: "right" }}
+          sx={{ pointerEvents: "auto" }}
+        >
+          <MuiAlert
+            onClose={() => setSnackbarOpen(false)}
+            severity={snackbarSeverity}
+            sx={{ width: "100%" }}
+          >
+            {snackbarMessage}
+          </MuiAlert>
+        </Snackbar>
+      </Box>
     </Box>
   );
 };

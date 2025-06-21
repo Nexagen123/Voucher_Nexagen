@@ -11,6 +11,9 @@ const {
   accountController,
   userController,
   editGatePassController,
+  voidGatePassController,
+  getAllVoidedGatePassController,
+  unvoidGatePassController,
 } = require("../controller/controller");
 const router = express.Router();
 
@@ -22,6 +25,9 @@ router.get("/get", (req, res) => {
 router.post("/gatepass", gatePassController);
 router.get("/allgatepass", getAllGatePassController);
 router.patch("/gatepass/:id", editGatePassController);
+router.post("/voidgatepass/:id", voidGatePassController);
+router.post("/unvoidgatepass/:id", unvoidGatePassController);
+router.get("/voidedgatepass", getAllVoidedGatePassController);
 
 // inventory category routes
 router.post("/createcategory", categoryController);

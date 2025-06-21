@@ -17,22 +17,17 @@ exports.gatePassController = async (req, res) => {
       !Array.isArray(rows) ||
       rows.length === 0
     ) {
-      return res
-        .status(400)
-        .send({
-          message: "All fields are required and rows must be a non-empty array",
-        });
+      return res.status(400).send({
+        message: "All fields are required and rows must be a non-empty array",
+      });
     }
 
     // Validate each row
     for (const row of rows) {
       if (!row.id || !row.productName || !row.detail || !row.qty || !row.unit) {
-        return res
-          .status(400)
-          .send({
-            message:
-              "Each row must have id, productName, detail, qty, and unit",
-          });
+        return res.status(400).send({
+          message: "Each row must have id, productName, detail, qty, and unit",
+        });
       }
     }
 
@@ -132,7 +127,8 @@ exports.stockController = async (req, res) => {
 // Get all gate passes
 exports.getAllGatePassController = async (req, res) => {
   try {
-    let gatePasses = await gatePassSchema.find();
+    // Only return non-voided gate passes
+    let gatePasses = await gatePassSchema.find({ is_void: { $ne: true } });
     if (gatePasses.length > 0) {
       res.send(gatePasses);
     } else {
@@ -316,5 +312,67 @@ exports.editGatePassController = async (req, res) => {
       error,
     });
     console.log(error);
+  }
+};
+
+// Void a gate pass
+exports.voidGatePassController = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updated = await gatePassSchema.findByIdAndUpdate(
+      id,
+      { is_void: true },
+      { new: true }
+    );
+    if (!updated) {
+      return res
+        .status(404)
+        .send({ success: false, message: "Gate pass not found" });
+    }
+    res.send({ success: true, message: "Gate pass voided", gatePass: updated });
+  } catch (error) {
+    res
+      .status(500)
+      .send({ success: false, message: "Error voiding gate pass", error });
+  }
+};
+
+// Unvoid a gate pass
+exports.unvoidGatePassController = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updated = await gatePassSchema.findByIdAndUpdate(
+      id,
+      { is_void: false },
+      { new: true }
+    );
+    if (!updated) {
+      return res
+        .status(404)
+        .send({ success: false, message: "Gate pass not found" });
+    }
+    res.send({
+      success: true,
+      message: "Gate pass unvoided",
+      gatePass: updated,
+    });
+  } catch (error) {
+    res
+      .status(500)
+      .send({ success: false, message: "Error unvoiding gate pass", error });
+  }
+};
+
+// List all voided gate passes
+exports.getAllVoidedGatePassController = async (req, res) => {
+  try {
+    const voided = await gatePassSchema.find({ is_void: true });
+    res.send({ success: true, data: voided });
+  } catch (error) {
+    res.status(500).send({
+      success: false,
+      message: "Error fetching voided gate passes",
+      error,
+    });
   }
 };

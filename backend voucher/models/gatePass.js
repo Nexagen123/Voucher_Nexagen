@@ -18,6 +18,7 @@ const gatePassSchema = new mongoose.Schema(
     orderNo: { type: String, required: true },
     type: { type: String, required: true },
     rows: { type: [productRowSchema], required: true },
+    is_void: { type: Boolean, default: false },
   },
   {
     timestamps: true,

@@ -176,3 +176,23 @@ export const editGatePass = async (id: string, gatepassData: any) => {
     throw error;
   }
 };
+
+export const voidGatePass = async (id: string) => {
+  try {
+    const response = await axiosInstance.post(`/voidgatepass/${id}`);
+    return response;
+  } catch (error) {
+    console.error("Void Gate Pass Error:", error);
+    throw error;
+  }
+};
+
+export const unvoidGatePass = async (id: string) => {
+  try {
+    const response = await axiosInstance.post(`/unvoidgatepass/${id}`);
+    return response;
+  } catch (error) {
+    console.error("Unvoid Gate Pass Error:", error);
+    throw error;
+  }
+};

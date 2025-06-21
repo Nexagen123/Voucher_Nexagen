@@ -207,3 +207,14 @@ export const unvoidGatePass = async (id: string) => {
     throw error;
   }
 };
+
+// Add deleteStock API
+export const deleteStock = async (id: string) => {
+  try {
+    const response = await axiosInstance.delete(`/deletestock/${id}`);
+    return response;
+  } catch (error) {
+    console.error("Delete Stock Error:", error);
+    throw error;
+  }
+};

@@ -361,6 +361,29 @@ const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
         backgroundColor: "white",
       }}
     >
+      {/* Back Button at Top Left */}
+      <Button
+        variant="outlined"
+        startIcon={<ArrowBackIcon />}
+        onClick={onBack}
+        sx={{
+          position: "fixed",
+          top: { xs: 8, md: 24 },
+          left: { xs: 8, md: 24 },
+          zIndex: 1200,
+          backgroundColor: "white",
+          color: "#1976d2",
+          borderColor: "#1976d2",
+          fontWeight: "bold",
+          boxShadow: 2,
+          "&:hover": {
+            backgroundColor: "#e3f2fd",
+            borderColor: "#1976d2",
+          },
+        }}
+      >
+        Back
+      </Button>
       {/* Header */}
       <Paper
         elevation={3}

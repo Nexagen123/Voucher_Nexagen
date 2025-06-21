@@ -721,6 +721,7 @@ exports.voidVoucherEntry = async (req, res) => {
     const connection = await getDbConnection(req.headers.dbprefix);
     const Entries = getModel(connection, "Entries", entriesSchema);
     const { voucherId, entryId } = req.params;
+    const { isVoid } = req.body; // Accept isVoid from request
 
     // Find the entry document containing this entry
     const entryDoc = await Entries.findOne({
@@ -734,16 +735,19 @@ exports.voidVoucherEntry = async (req, res) => {
     // Update the isVoid field for the specific entry
     await Entries.updateOne(
       { _id: entryDoc._id, "entries._id": entryId },
-      { $set: { "entries.$.isVoid": true } }
+      { $set: { "entries.$.isVoid": isVoid } } // Use isVoid from request
     );
 
     res
       .status(200)
-      .json({ success: true, message: "Entry voided successfully" });
+      .json({
+        success: true,
+        message: `Entry ${isVoid ? "voided" : "unvoided"} successfully`,
+      });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: "Error voiding entry",
+      message: `Error ${req.body.isVoid ? "voiding" : "unvoiding"} entry`,
       error: error.message,
     });
   }

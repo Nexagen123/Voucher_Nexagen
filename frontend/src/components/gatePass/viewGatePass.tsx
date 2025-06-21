@@ -205,6 +205,98 @@ const ViewGatePass: React.FC = () => {
     }
   };
 
+  // Print handler for Gate Pass
+  const handlePrintGatePass = () => {
+    if (!selectedVoucher) return;
+    const printContent = `
+      <html>
+      <head>
+        <title>Gate Pass - ${selectedVoucher.igpId || ""}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 40px; }
+          h2 { color: #1976d2; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+          th { background: #e3f2fd; }
+          .header { margin-bottom: 24px; }
+          .info { margin-bottom: 12px; }
+          .signatures { margin-top: 40px; display: flex; justify-content: space-between; }
+          .signature-box { text-align: center; }
+          .signature-line { border-bottom: 1px solid #888; width: 120px; margin: 16px auto 0 auto; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h2 style="background:#1976d2;color:#fff;padding:12px 0;border-radius:8px;text-align:center;">Gate Pass Details</h2>
+          <div class="info"><strong>GP ID:</strong> ${
+            selectedVoucher.igpId || ""
+          }</div>
+          <div class="info"><strong>Date:</strong> ${
+            selectedVoucher.date || ""
+          }</div>
+          <div class="info"><strong>Party Name:</strong> ${
+            selectedVoucher.party || selectedVoucher.partyName || ""
+          }</div>
+          <div class="info"><strong>Status:</strong> ${
+            selectedVoucher.type || selectedVoucher.status || ""
+          }</div>
+          <div class="info"><strong>Order No:</strong> ${
+            selectedVoucher.orderNo || "-"
+          }</div>
+        </div>
+        <h3 style="color:#1976d2;">Products</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Product Name</th>
+              <th>Quantity</th>
+              <th>Unit</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${
+              Array.isArray(selectedVoucher.rows) &&
+              selectedVoucher.rows.length > 0
+                ? selectedVoucher.rows
+                    .map(
+                      (row: any) => `
+                      <tr>
+                        <td>${row.productName}</td>
+                        <td>${row.qty}</td>
+                        <td>${row.unit}</td>
+                      </tr>
+                    `
+                    )
+                    .join("")
+                : `<tr><td colspan='3' style='text-align:center;'>No products</td></tr>`
+            }
+          </tbody>
+        </table>
+        <div class="signatures">
+          <div class="signature-box">
+            <div>Signature (Issuer)</div>
+            <div class="signature-line"></div>
+          </div>
+          <div class="signature-box">
+            <div>Signature (Receiver)</div>
+            <div class="signature-line"></div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    const printWindow = window.open("", "_blank", "width=900,height=700");
+    if (printWindow) {
+      printWindow.document.open();
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+      }, 500);
+    }
+  };
+
   // Filtered data based on search query (by party name) and date range
   const filteredData = voucherData.filter((row: any) => {
     const party = (row.party || row.partyName || "").toLowerCase();
@@ -789,7 +881,7 @@ const ViewGatePass: React.FC = () => {
                     variant="contained"
                     color="secondary"
                     startIcon={<PrintIcon />}
-                    onClick={handleJsPdfPrint} // Use jsPDF for print
+                    onClick={handlePrintGatePass}
                     sx={{ borderRadius: 2, minWidth: 100 }}
                     className="no-print"
                   >

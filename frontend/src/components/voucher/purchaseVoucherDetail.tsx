@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Box,
   Paper,
@@ -78,6 +78,7 @@ interface PurchaseVoucherDetailProps {
   onBack: () => void;
   onEdit: (voucher: PurchaseVoucher) => void;
   onVoid: (voucher: PurchaseVoucher) => void;
+  onRefresh?: () => void; // Add optional onRefresh prop
 }
 
 const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
@@ -85,6 +86,7 @@ const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
   onBack,
   onEdit,
   onVoid,
+  onRefresh, // Destructure onRefresh
 }) => {
   // State
   const [voidDialogOpen, setVoidDialogOpen] = useState(false);
@@ -151,8 +153,8 @@ const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
     }
   };
 
-  // Handle voiding a single entry
-  const handleVoidEntry = async (entry: any) => {
+  // Handle voiding or unvoiding a single entry
+  const handleVoidEntry = async (entry: any, unvoid = false) => {
     if (!voucher || !entry) return;
     try {
       setEntryLoading(entry._id || entry.id || "");
@@ -166,24 +168,170 @@ const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
             "Content-Type": "application/json",
             dbprefix: localStorage.getItem("dbprefix") || "fast",
           },
-          body: JSON.stringify({ is_void: true }),
+          body: JSON.stringify({ isVoid: !unvoid }), // true for void, false for unvoid
         }
       );
       if (!response.ok)
         throw new Error(`HTTP error! status: ${response.status}`);
       const result = await response.json();
       if (result.success) {
-        showSnackbar("Entry voided successfully!", "success");
+        showSnackbar(
+          unvoid
+            ? "Entry unvoided successfully!"
+            : "Entry voided successfully!",
+          "success"
+        );
         setVoidEntryDialogOpen({ open: false, entry: null });
-        // Optionally, refresh voucher data here
+        if (onRefresh) onRefresh(); // Call onRefresh after success
       } else {
-        throw new Error(result.message || "Failed to void entry");
+        throw new Error(
+          result.message ||
+            (unvoid ? "Failed to unvoid entry" : "Failed to void entry")
+        );
       }
     } catch (error) {
-      console.error("Error voiding entry:", error);
-      showSnackbar("Error voiding entry", "error");
+      console.error(
+        unvoid ? "Error unvoiding entry:" : "Error voiding entry:",
+        error
+      );
+      showSnackbar(
+        unvoid ? "Error unvoiding entry" : "Error voiding entry",
+        "error"
+      );
     } finally {
       setEntryLoading(null);
+    }
+  };
+
+  // Print handler
+  const handlePrint = () => {
+    if (!voucher) return;
+    // Prepare printable HTML
+    const printContent = `
+      <html>
+      <head>
+        <title>Purchase Voucher - ${voucher.voucher_id}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 40px; }
+          h2 { color: #1976d2; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+          th { background: #f8f9fa; }
+          .header { margin-bottom: 24px; }
+          .info { margin-bottom: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h2>Purchase Voucher Details</h2>
+          <div class="info"><strong>Voucher ID:</strong> ${
+            voucher.voucher_id
+          }</div>
+          <div class="info"><strong>Date:</strong> ${new Date(
+            voucher.date
+          ).toLocaleDateString()}</div>
+          <div class="info"><strong>Supplier:</strong> ${
+            voucher.metadata?.supplier || "N/A"
+          }</div>
+          <div class="info"><strong>Total Amount:</strong> $${
+            voucher.metadata?.totalAmount?.toFixed(2) || "0.00"
+          }</div>
+          <div class="info"><strong>Status:</strong> ${
+            voucher.is_void ? "Voided" : voucher.is_posted ? "Posted" : "Draft"
+          }</div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Account</th>
+              <th>Item</th>
+              <th>QTY</th>
+              <th>Category</th>
+              <th>Product Code</th>
+              <th>Rate</th>
+              <th>GST %</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${(() => {
+              // Flatten all entries from all entry documents
+              const allEntries: any[] = [];
+              if (voucher.entries && voucher.entries.length > 0) {
+                voucher.entries.forEach((entryDoc: any) => {
+                  if (entryDoc.entries && Array.isArray(entryDoc.entries)) {
+                    entryDoc.entries.forEach((entry: any) => {
+                      if (!entry.isVoid) {
+                        allEntries.push({
+                          ...entry,
+                          accountId: entryDoc.accountId,
+                        });
+                      }
+                    });
+                  }
+                });
+              }
+              if (allEntries.length === 0) {
+                return `<tr><td colspan='8' style='text-align:center;'>No purchase details available</td></tr>`;
+              }
+              return allEntries
+                .map(
+                  (entry: any) => `
+                  <tr>
+                    <td>${
+                      voucher.metadata?.supplier || "Master Elastic Factory"
+                    }</td>
+                    <td>${
+                      entry.metadata?.itemName ||
+                      entry.description
+                        ?.split("Purchase of ")[1]
+                        ?.split(" - ")[0] ||
+                      "N/A"
+                    }</td>
+                    <td>${
+                      entry.metadata?.quantity ||
+                      entry.description?.match(
+                        /(\d+(?:\.\d+)?)\s+\w+\s+@/
+                      )?.[1] ||
+                      "0"
+                    }</td>
+                    <td>${entry.metadata?.category || "N/A"}</td>
+                    <td>${
+                      entry.metadata?.productCode ||
+                      Math.floor(Math.random() * 900) + 100
+                    }</td>
+                    <td>${
+                      entry.metadata?.rate ||
+                      entry.description?.match(/@\s+(\d+(?:\.\d+)?)/)?.[1] ||
+                      (entry.debit ? entry.debit.toString() : "0.00")
+                    }</td>
+                    <td>${entry.metadata?.gst || "0"}</td>
+                    <td><strong>${
+                      entry.metadata?.total?.toFixed(2) ||
+                      (entry.debit ? entry.debit.toFixed(2) : "0.00")
+                    }</strong></td>
+                  </tr>
+                `
+                )
+                .join("");
+            })()}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `;
+    // Open print window
+    const printWindow = window.open("", "_blank", "width=900,height=700");
+    if (printWindow) {
+      printWindow.document.open();
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+        // Optionally, close after printing
+        // printWindow.close();
+      }, 500);
     }
   };
 
@@ -287,7 +435,7 @@ const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
                   <Typography variant="subtitle2" color="textSecondary">
                     Voucher ID
                   </Typography>
-                  <Typography variant="h6" fontWeight="bold" color="primary">
+                  <Typography variant="h6" fontWeight="bold" color="black">
                     {voucher.voucher_id}
                   </Typography>
                 </Box>
@@ -432,107 +580,130 @@ const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
                   console.log("Flattened entries:", allEntries);
 
                   if (allEntries.length > 0) {
-                    return allEntries.map((entry: any, index: number) => {
-                      const isEntryVoided = entry.is_void;
-                      return (
-                        <TableRow
-                          key={index}
-                          sx={{
-                            "&:nth-of-type(odd)": {
-                              backgroundColor: "#fafafa",
-                            },
-                            opacity: isEntryVoided ? 0.5 : 1,
-                          }}
-                        >
-                          <TableCell sx={{ color: "#1976d2", fontWeight: 500 }}>
-                            {voucher.metadata?.supplier ||
-                              "Master Elastic Factory"}
-                          </TableCell>
-                          <TableCell>
-                            {entry.metadata?.itemName ||
-                              entry.description
-                                ?.split("Purchase of ")[1]
-                                ?.split(" - ")[0] ||
-                              "N/A"}
-                          </TableCell>
-                          <TableCell>
-                            {entry.metadata?.quantity ||
-                              entry.description?.match(
-                                /(\d+(?:\.\d+)?)\s+\w+\s+@/
-                              )?.[1] ||
-                              "0"}
-                          </TableCell>
-                          <TableCell>
-                            {entry.metadata?.category || "N/A"}
-                          </TableCell>
-                          <TableCell>
-                            {entry.metadata?.productCode ||
-                              Math.floor(Math.random() * 900) + 100}
-                          </TableCell>
-                          <TableCell>
-                            {entry.metadata?.rate ||
-                              entry.description?.match(
-                                /@\s+(\d+(?:\.\d+)?)/
-                              )?.[1] ||
-                              (entry.debit ? entry.debit.toString() : "0.00")}
-                          </TableCell>
-                          <TableCell>{entry.metadata?.gst || "0"}</TableCell>
-                          <TableCell sx={{ fontWeight: "bold" }}>
-                            {entry.metadata?.total?.toFixed(2) ||
-                              (entry.debit ? entry.debit.toFixed(2) : "0.00")}
-                          </TableCell>
-                          <TableCell>
-                            <Box
-                              sx={{
-                                display: "flex",
-                                gap: 1,
-                                flexDirection: { xs: "column", sm: "row" },
-                              }}
+                    return allEntries
+                      .filter((entry: any) => !entry.isVoid) // Only show non-voided entries
+                      .map((entry: any, index: number) => {
+                        const isEntryVoided = entry.isVoid;
+                        return (
+                          <TableRow
+                            key={index}
+                            sx={{
+                              "&:nth-of-type(odd)": {
+                                backgroundColor: "#fafafa",
+                              },
+                              opacity: isEntryVoided ? 0.5 : 1,
+                            }}
+                          >
+                            <TableCell
+                              sx={{ color: "#1976d2", fontWeight: 500 }}
                             >
-                              <Button
-                                variant="contained"
-                                size="small"
+                              {voucher.metadata?.supplier ||
+                                "Master Elastic Factory"}
+                            </TableCell>
+                            <TableCell>
+                              {entry.metadata?.itemName ||
+                                entry.description
+                                  ?.split("Purchase of ")[1]
+                                  ?.split(" - ")[0] ||
+                                "N/A"}
+                            </TableCell>
+                            <TableCell>
+                              {entry.metadata?.quantity ||
+                                entry.description?.match(
+                                  /(\d+(?:\.\d+)?)\s+\w+\s+@/
+                                )?.[1] ||
+                                "0"}
+                            </TableCell>
+                            <TableCell>
+                              {entry.metadata?.category || "N/A"}
+                            </TableCell>
+                            <TableCell>
+                              {entry.metadata?.productCode ||
+                                Math.floor(Math.random() * 900) + 100}
+                            </TableCell>
+                            <TableCell>
+                              {entry.metadata?.rate ||
+                                entry.description?.match(
+                                  /@\s+(\d+(?:\.\d+)?)/
+                                )?.[1] ||
+                                (entry.debit ? entry.debit.toString() : "0.00")}
+                            </TableCell>
+                            <TableCell>{entry.metadata?.gst || "0"}</TableCell>
+                            <TableCell sx={{ fontWeight: "bold" }}>
+                              {entry.metadata?.total?.toFixed(2) ||
+                                (entry.debit ? entry.debit.toFixed(2) : "0.00")}
+                            </TableCell>
+                            <TableCell>
+                              <Box
                                 sx={{
-                                  backgroundColor: "#f44336",
-                                  color: "white",
-                                  fontSize: "0.75rem",
-                                  minWidth: "60px",
-                                  "&:hover": {
-                                    backgroundColor: "#d32f2f",
-                                  },
+                                  display: "flex",
+                                  gap: 1,
+                                  flexDirection: { xs: "column", sm: "row" },
                                 }}
-                                disabled={isEntryVoided}
-                                onClick={() =>
-                                  setVoidEntryDialogOpen({ open: true, entry })
-                                }
                               >
-                                {isEntryVoided ? "VOIDED" : "RETURN"}
-                              </Button>
-                              <Button
-                                variant="outlined"
-                                size="small"
-                                sx={{
-                                  borderColor: "#ff9800",
-                                  color: "#ff9800",
-                                  fontSize: "0.75rem",
-                                  minWidth: "50px",
-                                  "&:hover": {
-                                    borderColor: "#f57c00",
-                                    backgroundColor: "#fff3e0",
-                                  },
-                                }}
-                                disabled={isEntryVoided}
-                                onClick={() =>
-                                  setVoidEntryDialogOpen({ open: true, entry })
-                                }
-                              >
-                                {isEntryVoided ? "VOIDED" : "VOID"}
-                              </Button>
-                            </Box>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    });
+                                <Button
+                                  variant="contained"
+                                  size="small"
+                                  sx={{
+                                    backgroundColor: "#f44336",
+                                    color: "white",
+                                    fontSize: "0.75rem",
+                                    minWidth: "60px",
+                                    "&:hover": {
+                                      backgroundColor: "#d32f2f",
+                                    },
+                                  }}
+                                  disabled={isEntryVoided}
+                                  onClick={() =>
+                                    setVoidEntryDialogOpen({
+                                      open: true,
+                                      entry,
+                                    })
+                                  }
+                                >
+                                  {isEntryVoided ? "VOIDED" : "RETURN"}
+                                </Button>
+                                <Button
+                                  variant="outlined"
+                                  size="small"
+                                  sx={{
+                                    borderColor: isEntryVoided
+                                      ? "#4caf50"
+                                      : "#ff9800",
+                                    color: isEntryVoided
+                                      ? "#4caf50"
+                                      : "#ff9800",
+                                    fontSize: "0.75rem",
+                                    minWidth: "50px",
+                                    "&:hover": {
+                                      borderColor: isEntryVoided
+                                        ? "#388e3c"
+                                        : "#f57c00",
+                                      backgroundColor: isEntryVoided
+                                        ? "#e8f5e9"
+                                        : "#fff3e0",
+                                    },
+                                  }}
+                                  disabled={
+                                    entryLoading === (entry._id || entry.id)
+                                  }
+                                  onClick={
+                                    () =>
+                                      isEntryVoided
+                                        ? handleVoidEntry(entry, true) // unvoid
+                                        : setVoidEntryDialogOpen({
+                                            open: true,
+                                            entry,
+                                          }) // void
+                                  }
+                                >
+                                  {isEntryVoided ? "UNVOID" : "VOID"}
+                                </Button>
+                              </Box>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      });
                   } else {
                     return (
                       <TableRow>
@@ -633,6 +804,24 @@ const PurchaseVoucherDetail: React.FC<PurchaseVoucherDetailProps> = ({
             ) : (
               "Void Voucher"
             )}
+          </Button>
+          <Button
+            variant="contained"
+            sx={{
+              px: { xs: 3, md: 4 },
+              py: { xs: 1.5, md: 1 },
+              fontSize: { xs: "1rem", md: "1.1rem" },
+              minWidth: { xs: "200px", md: "auto" },
+              backgroundColor: "#1976d2",
+              color: "#fff",
+              "&:hover": {
+                backgroundColor: "#115293",
+                color: "#fff",
+              },
+            }}
+            onClick={handlePrint}
+          >
+            Print
           </Button>
         </Box>
       </Paper>

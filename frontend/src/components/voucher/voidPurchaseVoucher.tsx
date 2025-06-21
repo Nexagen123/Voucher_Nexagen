@@ -23,6 +23,8 @@ import {
 } from "@mui/material";
 import type { SelectChangeEvent } from "@mui/material";
 import { Delete as VoidIcon } from "@mui/icons-material";
+import Snackbar from "@mui/material/Snackbar";
+import Alert from "@mui/material/Alert";
 
 // Interface for Voided Purchase Voucher or Entry
 interface VoidedPurchaseVoucher {
@@ -61,6 +63,13 @@ const VoidPurchaseVoucher: React.FC<VoidPurchaseVoucherProps> = ({
   // State for API data
   const [apiVouchers, setApiVouchers] = useState<VoidedPurchaseVoucher[]>([]);
   const [apiLoading, setApiLoading] = useState(false);
+
+  // State for snackbar feedback
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "error">(
+    "success"
+  );
 
   // Use API data if available, otherwise use props
   const displayVouchers = apiVouchers.length > 0 ? apiVouchers : vouchers;
@@ -184,6 +193,57 @@ const VoidPurchaseVoucher: React.FC<VoidPurchaseVoucherProps> = ({
     setCurrentPage(1);
   };
 
+  // Unvoid voucher or entry
+  const handleUnvoid = async (voucher: VoidedPurchaseVoucher) => {
+    try {
+      setApiLoading(true);
+      let response;
+      if (voucher.status === "Voided") {
+        response = await fetch(
+          `http://localhost:8000/vouchers/${voucher.id}/void`,
+          {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              dbprefix: localStorage.getItem("dbprefix") || "fast",
+              "Cache-Control": "no-cache",
+            },
+            body: JSON.stringify({ is_void: false }),
+          }
+        );
+      } else if (voucher.status === "EntryVoided" && voucher.entryDetails) {
+        response = await fetch(
+          `http://localhost:8000/vouchers/${voucher.entryDetails.voucherId}/entries/${voucher.id}/void`,
+          {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              dbprefix: localStorage.getItem("dbprefix") || "fast",
+              "Cache-Control": "no-cache",
+            },
+            body: JSON.stringify({ isVoid: false }),
+          }
+        );
+      }
+      if (response && response.ok) {
+        setSnackbarMessage("Unvoid successful!");
+        setSnackbarSeverity("success");
+        setSnackbarOpen(true);
+        await fetchVoidedVouchers();
+      } else {
+        setSnackbarMessage("Failed to unvoid.");
+        setSnackbarSeverity("error");
+        setSnackbarOpen(true);
+      }
+    } catch (error) {
+      setSnackbarMessage("Error during unvoid.");
+      setSnackbarSeverity("error");
+      setSnackbarOpen(true);
+    } finally {
+      setApiLoading(false);
+    }
+  };
+
   return (
     <Box
       sx={{
@@ -216,7 +276,6 @@ const VoidPurchaseVoucher: React.FC<VoidPurchaseVoucherProps> = ({
           sx={{
             mb: { xs: 2, md: 3 },
             fontWeight: "bold",
-            color: "black",
             backgroundColor: "#3da0bd",
             color: "white",
             py: { xs: 1.5, md: 2 },
@@ -364,6 +423,41 @@ const VoidPurchaseVoucher: React.FC<VoidPurchaseVoucherProps> = ({
                     <Typography variant="body2">
                       {voucher.description}
                     </Typography>
+                    {voucher.status === "Voided" ? (
+                      <Box sx={{ mt: 1 }}>
+                        <Chip
+                          icon={<VoidIcon />}
+                          label="VOIDED VOUCHER"
+                          color="error"
+                          sx={{ fontWeight: 600, fontSize: "0.95rem", mb: 1 }}
+                        />
+                      </Box>
+                    ) : (
+                      <Box sx={{ mt: 1 }}>
+                        <Chip
+                          icon={<VoidIcon style={{ color: "#ff9800" }} />}
+                          label={`VOIDED ENTRY${
+                            voucher.entryDetails?.description
+                              ? ": " + voucher.entryDetails.description
+                              : ""
+                          }`}
+                          color="warning"
+                          sx={{ fontWeight: 600, fontSize: "0.95rem", mb: 1 }}
+                        />
+                      </Box>
+                    )}
+                    {(voucher.status === "Voided" ||
+                      voucher.status === "EntryVoided") && (
+                      <Box sx={{ mt: 1 }}>
+                        <Chip
+                          label="Unvoid"
+                          color="success"
+                          clickable
+                          onClick={() => handleUnvoid(voucher)}
+                          sx={{ fontWeight: 600 }}
+                        />
+                      </Box>
+                    )}
                   </CardContent>
                 </Card>
               ))
@@ -384,12 +478,13 @@ const VoidPurchaseVoucher: React.FC<VoidPurchaseVoucherProps> = ({
                   <TableCell sx={{ fontWeight: "bold" }}>Description</TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>Entries</TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>Status</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>Action</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {loading || apiLoading ? (
                   <TableRow>
-                    <TableCell colSpan={5} sx={{ textAlign: "center", py: 4 }}>
+                    <TableCell colSpan={6} sx={{ textAlign: "center", py: 4 }}>
                       <CircularProgress size={24} sx={{ mr: 2 }} />
                       Loading...
                     </TableCell>
@@ -397,7 +492,7 @@ const VoidPurchaseVoucher: React.FC<VoidPurchaseVoucherProps> = ({
                 ) : currentVouchers.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={5}
+                      colSpan={6}
                       sx={{ textAlign: "center", py: 4, color: "#666" }}
                     >
                       {searchTerm
@@ -423,17 +518,39 @@ const VoidPurchaseVoucher: React.FC<VoidPurchaseVoucherProps> = ({
                         {voucher.entries}
                       </TableCell>
                       <TableCell>
-                        <Chip
-                          label={
-                            voucher.status === "Voided"
-                              ? "VOIDED VOUCHER"
-                              : "VOIDED ENTRY"
-                          }
-                          color={
-                            voucher.status === "Voided" ? "error" : "warning"
-                          }
-                          size="small"
-                        />
+                        {voucher.status === "Voided" ? (
+                          <Chip
+                            icon={<VoidIcon />}
+                            label="VOIDED VOUCHER"
+                            color="error"
+                            size="small"
+                            sx={{ fontWeight: 600, fontSize: "0.95rem" }}
+                          />
+                        ) : (
+                          <Chip
+                            icon={<VoidIcon style={{ color: "#ff9800" }} />}
+                            label={`VOIDED ENTRY${
+                              voucher.entryDetails?.description
+                                ? ": " + voucher.entryDetails.description
+                                : ""
+                            }`}
+                            color="warning"
+                            size="small"
+                            sx={{ fontWeight: 600, fontSize: "0.95rem" }}
+                          />
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {(voucher.status === "Voided" ||
+                          voucher.status === "EntryVoided") && (
+                          <Chip
+                            label="Unvoid"
+                            color="success"
+                            clickable
+                            onClick={() => handleUnvoid(voucher)}
+                            sx={{ fontWeight: 600 }}
+                          />
+                        )}
                       </TableCell>
                     </TableRow>
                   ))
@@ -468,6 +585,21 @@ const VoidPurchaseVoucher: React.FC<VoidPurchaseVoucherProps> = ({
           </Box>
         )}
       </Paper>
+      {/* Snackbar for feedback */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={4000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setSnackbarOpen(false)}
+          severity={snackbarSeverity}
+          sx={{ width: "100%" }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
